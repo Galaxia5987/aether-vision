@@ -28,9 +28,15 @@ val frontendDir = file("$rootDir/frontend")
 
 val npmCommand = if (OperatingSystem.current().isWindows) "npm.cmd" else "npm"
 
+val buildUtils = tasks.register("buildUtils") {
+    description = "Build API models and utils using KMP"
+    dependsOn(project(":utils").tasks.named("jsBrowserProductionLibraryDistribution"))
+}
+
 val installFrontend = tasks.register<Exec>("installFrontend") {
     description = "Install frontend npm dependencies"
     workingDir = frontendDir
+    dependsOn(buildUtils)
     commandLine(npmCommand, "install")
 }
 
