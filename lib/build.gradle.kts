@@ -1,6 +1,6 @@
 plugins {
     kotlin("jvm")
-    application
+    `java-library`
 }
 
 repositories {
@@ -8,7 +8,7 @@ repositories {
 }
 
 dependencies {
-    implementation("org.bytedeco:javacpp:1.5.10")
+    api("org.bytedeco:javacpp:1.5.10")
     testImplementation(kotlin("test"))
 }
 
@@ -41,17 +41,15 @@ val javacppBuild = tasks.register<JavaExec>("javacppBuild") {
     )
 }
 
-application {
-    mainClass = "com.galaxia5987.NativeLibraryKt"
-}
+val nativeOutputDir = layout.buildDirectory.dir("generated/native").get().asFile
 
-tasks.named<JavaExec>("run") {
-    val nativeLibPath = file("build/classes/kotlin/main").absolutePath
-
-    jvmArgs("--enable-native-access=ALL-UNNAMED")
-    systemProperty("java.library.path", nativeLibPath)
+tasks.named<Jar>("jar") {
+    dependsOn(javacppBuild)
+    from(nativeOutputDir)
 }
 
 tasks.test {
     useJUnitPlatform()
+    dependsOn(javacppBuild)
+    systemProperty("java.library.path", nativeOutputDir.absolutePath)
 }

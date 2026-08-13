@@ -28,9 +28,3 @@ class NativeLibrary : Pointer {
     /* Binds to the C++ add function */
     external fun add(a: Int, b: Int): Int
 }
-
-fun main() {
-    val lib = NativeLibrary()
-    val result = lib.add(10, 20)
-    println("Result from C++: $result")
-}
