@@ -1,5 +1,6 @@
 plugins {
     kotlin("jvm")
+    kotlin("plugin.serialization") version "1.9.22"
 }
 
 repositories {
@@ -7,6 +8,7 @@ repositories {
 }
 
 dependencies {
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
     api("ch.qos.logback:logback-classic:1.5.38")
     testImplementation(kotlin("test"))
 }
