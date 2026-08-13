@@ -1,27 +1,22 @@
-<script lang="ts">
-    import { Pane, Folder, Slider, Checkbox } from 'svelte-tweakpane-ui';
+<script lang="ts" module>
+    import { Pane, Folder, Text, Button } from 'svelte-tweakpane-ui';
+    import { config as configPkg } from 'utils';
+    type AppConfig = configPkg.structs.AppConfig;
+    const ConfigClient = configPkg.ConfigClient;
 
-    // State variables for the vision system
-    let exposure = 0.8;
-    let threshold = 50;
-    let debugMode = false;
+    const client = new ConfigClient(window.location.origin);
+    let config: AppConfig = await client.fetchConfig();
 
-    // React to changes in state to send updates to the backend
-    $: {
-        if (exposure !== undefined) {
-            console.log('Update backend with new exposure:', exposure);
-        }
+    async function save(){
+        await client.updateConfig(config)
     }
+
 </script>
 
-
-<Pane title="Vision Controller" localStoreId="config">
-    <Folder title="Camera Hardware" expanded={true}>
-        <Slider bind:value={exposure} min={0} max={1} label="Exposure" />
+<Pane title="Configuration" localStoreId="config">
+    <Folder title="Network Table">
+        <Text bind:value={config.networkTable.server} label="Server Address" />
+        <Text bind:value={config.networkTable.table} label="Table Path" />
     </Folder>
-
-    <Folder title="Detection Config">
-        <Slider bind:value={threshold} min={0} max={100} step={1} label="Threshold" />
-        <Checkbox bind:value={debugMode} label="Debug Mode" />
-    </Folder>
+    <Button on:click={save} title="Save" />
 </Pane>
