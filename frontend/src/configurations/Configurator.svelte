@@ -15,7 +15,7 @@
 </script>
 
 
-<Pane title="Vision Controller">
+<Pane title="Vision Controller" localStoreId="config">
     <Folder title="Camera Hardware" expanded={true}>
         <Slider bind:value={exposure} min={0} max={1} label="Exposure" />
     </Folder>
