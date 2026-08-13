@@ -3,6 +3,7 @@ import org.gradle.internal.os.OperatingSystem
 plugins {
     kotlin("jvm")
     alias(ktorLibs.plugins.ktor)
+    kotlin("plugin.serialization") version "1.9.22"
 }
 
 repositories {
@@ -13,6 +14,9 @@ dependencies {
     implementation(project(":utils"))
     implementation(ktorLibs.server.core)
     implementation(ktorLibs.server.netty)
+    implementation(ktorLibs.server.contentNegotiation)
+    implementation(ktorLibs.serialization.kotlinx.json)
+    implementation(ktorLibs.server.resources)
     testImplementation(kotlin("test"))
 }
 
