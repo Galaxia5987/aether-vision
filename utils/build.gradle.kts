@@ -7,6 +7,7 @@ repositories {
 }
 
 dependencies {
+    api("ch.qos.logback:logback-classic:1.5.38")
     testImplementation(kotlin("test"))
 }
 

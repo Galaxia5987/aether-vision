@@ -3,6 +3,9 @@ dependencyResolutionManagement {
     repositories {
         mavenCentral()
     }
+    versionCatalogs {
+        create("ktorLibs").from("io.ktor:ktor-version-catalog:3.5.2")
+    }
 }
 
 rootProject.name = "aether-vision"

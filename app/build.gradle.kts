@@ -5,6 +5,7 @@ plugins {
 
 dependencies {
     implementation(project(":lib"))
+    implementation(project(":server"))
     implementation(project(":utils"))
 }
 

@@ -46,3 +46,6 @@ bin/
 
 ### C++ ###
 cmake-build*
+
+### Logging ###
+*.log
