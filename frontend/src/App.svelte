@@ -1,27 +1,42 @@
 <script lang="ts">
-    import { Pane, Folder, Slider, Checkbox } from 'svelte-tweakpane-ui';
-
-    // State variables for the vision system
-    let exposure = 0.8;
-    let threshold = 50;
-    let debugMode = false;
-
-    // React to changes in state to send updates to the backend
-    $: {
-        if (exposure !== undefined) {
-            console.log('Update backend with new exposure:', exposure);
-        }
-    }
+    import CameraPanel from "./panels/CameraPanel.svelte";
+    import { PaneGroup, PaneResizer } from "paneforge";
+    import ConfigurationPanel from "./panels/ConfigurationPanel.svelte";
 </script>
 
+<div class="dashboard-container">
+    <PaneGroup direction="horizontal" autoSaveId="main-screen-split">
+        <ConfigurationPanel/>
 
-<Pane title="Vision Controller">
-    <Folder title="Camera Hardware" expanded={true}>
-        <Slider bind:value={exposure} min={0} max={1} label="Exposure" />
-    </Folder>
+        <PaneResizer class="resizer" />
 
-    <Folder title="Detection Config">
-        <Slider bind:value={threshold} min={0} max={100} step={1} label="Threshold" />
-        <Checkbox bind:value={debugMode} label="Debug Mode" />
-    </Folder>
-</Pane>
+        <CameraPanel/>
+
+    </PaneGroup>
+</div>
+<style>
+    .dashboard-container {
+        width: 100vw;
+        height: 100vh;
+    }
+
+    :global(.resizer) {
+        background-color: #333;
+        transition: background-color 0.2s ease;
+    }
+
+    :global(.resizer[data-direction="horizontal"]) {
+        width: 6px;
+        cursor: col-resize;
+    }
+
+    :global(.resizer[data-direction="vertical"]) {
+        height: 6px;
+        cursor: row-resize;
+    }
+
+    :global(.resizer:hover),
+    :global(.resizer[data-state="dragging"]) {
+        background-color: #666;
+    }
+</style>
