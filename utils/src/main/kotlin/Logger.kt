@@ -10,37 +10,42 @@ import ch.qos.logback.core.rolling.TimeBasedRollingPolicy
 import org.slf4j.LoggerFactory
 
 fun configureLogger() {
-    val context = (LoggerFactory.getILoggerFactory() as LoggerContext).apply {
-        reset()
-    }
+    val context =
+        (LoggerFactory.getILoggerFactory() as LoggerContext).apply {
+            reset()
+        }
 
-    val encoder = PatternLayoutEncoder().apply {
-        setContext(context)
-        pattern = "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
-        start()
-    }
+    val encoder =
+        PatternLayoutEncoder().apply {
+            setContext(context)
+            pattern = "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+            start()
+        }
 
-    val consoleAppender = ConsoleAppender<ILoggingEvent>().apply {
-        setContext(context)
-        name = "CONSOLE"
-        setEncoder(encoder)
-        start()
-    }
+    val consoleAppender =
+        ConsoleAppender<ILoggingEvent>().apply {
+            setContext(context)
+            name = "CONSOLE"
+            setEncoder(encoder)
+            start()
+        }
 
-    val fileAppender = RollingFileAppender<ILoggingEvent>().apply {
-        setContext(context)
-        name = "FILE"
-        file = "logs/app.log"
-        setEncoder(encoder)
-    }
+    val fileAppender =
+        RollingFileAppender<ILoggingEvent>().apply {
+            setContext(context)
+            name = "FILE"
+            file = "logs/app.log"
+            setEncoder(encoder)
+        }
 
-    fileAppender.rollingPolicy = TimeBasedRollingPolicy<ILoggingEvent>().apply {
-        setContext(context)
-        setParent(fileAppender)
-        fileNamePattern = "logs/app-%d{yyyy-MM-dd}.log"
-        maxHistory = 30
-        start()
-    }
+    fileAppender.rollingPolicy =
+        TimeBasedRollingPolicy<ILoggingEvent>().apply {
+            setContext(context)
+            setParent(fileAppender)
+            fileNamePattern = "logs/app-%d{yyyy-MM-dd}.log"
+            maxHistory = 30
+            start()
+        }
 
     fileAppender.start()
 

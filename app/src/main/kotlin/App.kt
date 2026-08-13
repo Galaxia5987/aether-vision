@@ -6,7 +6,7 @@ import configureLogger
 
 fun main() {
     NativeLibrary().use {
-        println(it.add(200,2))
+        println(it.add(200, 2))
     }
     configureLogger()
     Server.start()

@@ -7,11 +7,10 @@ import org.bytedeco.javacpp.annotation.Platform
 
 @Platform(
     include = ["NativeLibrary.h"],
-    link = ["mylib"]
+    link = ["mylib"],
 )
 @Namespace("mylib")
 class NativeLibrary : Pointer {
-
     companion object {
         init {
             Loader.load()
@@ -22,9 +21,12 @@ class NativeLibrary : Pointer {
         allocate()
     }
 
-    /* Binds to the C++ constructor to allocate memory */
+    // Binds to the C++ constructor to allocate memory
     private external fun allocate()
 
-    /* Binds to the C++ add function */
-    external fun add(a: Int, b: Int): Int
+    // Binds to the C++ add function
+    external fun add(
+        a: Int,
+        b: Int,
+    ): Int
 }
