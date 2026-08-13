@@ -6,13 +6,21 @@
 
 <Pane defaultSize={50} minSize={20}>
     <div class="empty-panel">
-        <p>Dashboard Widgets / Logs Go Here</p>
+        <div class="center-text">
+            <span>Aether Vision</span>
+        </div>
         <Configurator/>
         <LogMonitor/>
     </div>
 </Pane>
 
 <style>
+    .center-text {
+        display: inline-flex;
+        align-items: center;
+        user-select: none;
+        font-weight: bold;
+    }
     .empty-panel {
         width: 100%;
         height: 100%;
