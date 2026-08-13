@@ -1,5 +1,5 @@
 plugins {
-    kotlin("jvm")
+    kotlin("multiplatform")
     kotlin("plugin.serialization") version "1.9.22"
 }
 
@@ -7,13 +7,27 @@ repositories {
     mavenCentral()
 }
 
-dependencies {
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.6.3")
-    api("ch.qos.logback:logback-classic:1.5.38")
-    testImplementation(kotlin("test"))
-}
+kotlin {
+    jvm()
 
-tasks.test {
-    useJUnitPlatform()
+    js {
+        browser()
+        binaries.library()
+        generateTypeScriptDefinitions()
+    }
+
+    sourceSets {
+        val commonMain by getting {
+            dependencies {
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.6.3")
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
+            }
+        }
+
+        val jvmMain by getting {
+            dependencies {
+                api("ch.qos.logback:logback-classic:1.5.38")
+            }
+        }
+    }
 }
