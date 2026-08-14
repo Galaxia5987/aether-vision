@@ -25,6 +25,8 @@ object Config {
             return cachedConfig!!
         }
 
+        logger.info("Reloading config from file...")
+
         val config =
             if (configFile.exists()) {
                 val fileContent = configFile.readText()
@@ -51,6 +53,8 @@ object Config {
 
         configFile.parentFile?.mkdirs()
         configFile.writeText(jsonContent)
+
+        logger.info("Successfully saved config!")
 
         cachedConfig = config
     }
