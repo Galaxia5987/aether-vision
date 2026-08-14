@@ -1,5 +1,6 @@
 <script lang="ts">
     import {Pane, Monitor} from 'svelte-tweakpane-ui';
+    import {client} from "../api/api";
 
     let logs = "Logs are currently empty";
 
@@ -12,9 +13,14 @@
         logs = truncateLog(currentLog);
     }
 
+    client.subscribeToLogs((msg: string) => {
+        const arr: string[] = JSON.parse(msg);
+        acceptLog(arr.join("\n"));
+    })
+
 </script>
 
-<Pane title="Log" localStoreId="log-panel">
+<Pane title="Log" localStoreId="log-panel" maxWidth={innerWidth}>
     <Monitor
             value={logs}
             multiline={true}

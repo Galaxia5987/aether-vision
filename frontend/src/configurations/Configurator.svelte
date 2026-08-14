@@ -2,11 +2,10 @@
     import { onMount } from 'svelte';
     import { Pane, Folder, Text, Button, Slider, Checkbox, List, type ListOptions } from 'svelte-tweakpane-ui';
     import { config as configPkg } from 'utils';
-
     type AppConfig = configPkg.structs.AppConfig;
     const ConfigClient = configPkg.ConfigClient;
+    import {client} from '../api/api'
 
-    const client = new ConfigClient(window.location.origin);
     let config = configPkg.structs.defaultInstance();
 
     // Fetch configuration after component mount to prevent blocking rendering
@@ -44,9 +43,6 @@
             config.input = selectedInput;
         }
     }
-    client.subscribeToLogs((msg) => {
-        console.log(msg)
-    })
 
     $: handleSelectionChange(inputSelection);
 </script>
