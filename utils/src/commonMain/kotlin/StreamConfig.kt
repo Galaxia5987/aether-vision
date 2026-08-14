@@ -8,5 +8,5 @@ import kotlin.js.JsExport
 @JsExport
 @Serializable
 data class StreamConfig(
-    val enabled: Boolean
+    var enabled: Boolean
 )

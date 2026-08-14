@@ -10,10 +10,10 @@ import kotlin.js.JsExport
 @SerialName("RealsenseCamera")
 @Serializable
 data class RealsenseCamera(
-    val resolution: Resolution,
-    val fps: Int,
-    val colorStream: StreamConfig,
-    val depthStream: StreamConfig,
+    var resolution: Resolution,
+    var fps: Int,
+    var colorStream: StreamConfig,
+    var depthStream: StreamConfig,
 ) : InputConfig() {
     companion object : DefaultValue<RealsenseCamera> {
         override fun defaultInstance(): RealsenseCamera =

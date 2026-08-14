@@ -13,8 +13,8 @@ import kotlin.js.JsExport
 @JsExport
 @Serializable
 data class Resolution(
-    val width: Int,
-    val height: Int
+    var width: Int,
+    var height: Int
 )
 
 val options = mapOf<String, InputConfig>(

@@ -8,6 +8,6 @@ import kotlin.js.JsExport
 @JsExport
 @Serializable
 data class NetworkTableConfig(
-    val server: String,
-    val table: String
+    var server: String,
+    var table: String
 )

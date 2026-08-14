@@ -10,8 +10,8 @@ import kotlin.js.JsExport
 @SerialName("UsbCamera")
 @Serializable
 data class UsbCamera(
-    val resolution: Resolution,
-    val colorStream: StreamConfig
+    var resolution: Resolution,
+    var colorStream: StreamConfig
 ) : InputConfig(){
     companion object : DefaultValue<UsbCamera> {
         override fun defaultInstance(): UsbCamera =

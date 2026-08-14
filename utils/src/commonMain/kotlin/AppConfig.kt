@@ -8,8 +8,8 @@ import kotlin.js.JsExport
 @JsExport
 @Serializable
 data class AppConfig(
-    val input: InputConfig,
-    val networkTable: NetworkTableConfig
+    var input: InputConfig,
+    var networkTable: NetworkTableConfig
 )
 
 @OptIn(ExperimentalJsExport::class)
