@@ -14,15 +14,17 @@ data class RealsenseCamera(
     val fps: Int,
     val colorStream: StreamConfig,
     val depthStream: StreamConfig,
-) : InputConfig(), DefaultValue<RealsenseCamera> {
-    override fun defaultInstance(): RealsenseCamera =
-        RealsenseCamera(
-            Resolution(
-                640,
-                480
-            ),
-            30,
-            colorStream = StreamConfig(enabled = true),
-            depthStream = StreamConfig(enabled = true)
-        )
+) : InputConfig() {
+    companion object : DefaultValue<RealsenseCamera> {
+        override fun defaultInstance(): RealsenseCamera =
+            RealsenseCamera(
+                Resolution(
+                    640,
+                    480
+                ),
+                30,
+                colorStream = StreamConfig(enabled = true),
+                depthStream = StreamConfig(enabled = true)
+            )
+    }
 }

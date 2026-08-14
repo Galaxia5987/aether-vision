@@ -33,12 +33,18 @@ val buildUtils = tasks.register("buildUtils") {
     dependsOn(project(":utils").tasks.named("assemble"))
 }
 
+
+val installUtils = tasks.register<Exec>("installUtils") {
+    description = "Install utils package"
+    workingDir = frontendDir
+    commandLine(npmCommand, "install","utils", "--force")
+}
+
 val installFrontend = tasks.register<Exec>("installFrontend") {
     description = "Install frontend npm dependencies"
     workingDir = frontendDir
-    dependsOn(buildUtils)
+    dependsOn(buildUtils, installUtils)
     commandLine(npmCommand, "install")
-    commandLine(npmCommand, "install","utils","--force")
 }
 
 val buildFrontend = tasks.register<Exec>("buildFrontend") {

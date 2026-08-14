@@ -12,13 +12,15 @@ import kotlin.js.JsExport
 data class UsbCamera(
     val resolution: Resolution,
     val colorStream: StreamConfig
-) : InputConfig(), DefaultValue<UsbCamera> {
-    override fun defaultInstance(): UsbCamera =
-        UsbCamera(
-            Resolution(
-                640,
-                480
-            ),
-            colorStream = StreamConfig(enabled = true),
-        )
+) : InputConfig(){
+    companion object : DefaultValue<UsbCamera> {
+        override fun defaultInstance(): UsbCamera =
+            UsbCamera(
+                Resolution(
+                    640,
+                    480
+                ),
+                colorStream = StreamConfig(enabled = true),
+            )
+    }
 }

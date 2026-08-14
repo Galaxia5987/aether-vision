@@ -4,12 +4,10 @@ import { svelte } from '@sveltejs/vite-plugin-svelte'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [svelte()],
-  build: {
-    sourcemap: true,
-    rolldownOptions: {
-      output: {
-        sourcemapExcludeSources: false
-      }
-    }
+  optimizeDeps: {
+    include: ['utils'],
+  },
+  ssr: {
+    noExternal: ['utils'],
   }
 })
