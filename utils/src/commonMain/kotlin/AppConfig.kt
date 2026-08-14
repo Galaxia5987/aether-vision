@@ -11,3 +11,19 @@ data class AppConfig(
     val input: InputConfig,
     val networkTable: NetworkTableConfig
 )
+
+@OptIn(ExperimentalJsExport::class)
+@JsExport
+fun defaultInstance(): AppConfig =
+    AppConfig(
+        UsbCamera(
+            Resolution(640, 480),
+            StreamConfig(
+                enabled = true
+            )
+        ),
+        NetworkTableConfig(
+            "10.59.87.2",
+            "AetherVision"
+        )
+    )

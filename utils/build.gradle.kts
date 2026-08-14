@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.dsl.JsSourceMapEmbedMode
+
 plugins {
     kotlin("multiplatform")
     kotlin("plugin.serialization") version "1.9.22"
@@ -16,6 +18,16 @@ kotlin {
         browser()
         binaries.library()
         generateTypeScriptDefinitions()
+        compilations.all {
+            compileTaskProvider.configure {
+                compilerOptions {
+                    sourceMap.set(true)
+                    sourceMapEmbedSources.set(
+                        JsSourceMapEmbedMode.SOURCE_MAP_SOURCE_CONTENT_ALWAYS
+                    )
+                }
+            }
+        }
     }
 
     sourceSets {

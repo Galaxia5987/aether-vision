@@ -30,7 +30,7 @@ val npmCommand = if (OperatingSystem.current().isWindows) "npm.cmd" else "npm"
 
 val buildUtils = tasks.register("buildUtils") {
     description = "Build API models and utils using KMP"
-    dependsOn(project(":utils").tasks.named("jsBrowserProductionLibraryDistribution"))
+    dependsOn(project(":utils").tasks.named("assemble"))
 }
 
 val installFrontend = tasks.register<Exec>("installFrontend") {

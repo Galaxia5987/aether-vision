@@ -5,26 +5,13 @@ import config.structs.NetworkTableConfig
 import config.structs.Resolution
 import config.structs.StreamConfig
 import config.structs.UsbCamera
+import config.structs.defaultInstance
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
 import java.io.File
 
 private val configFile = File("config/config.json")
 private val serializer = AppConfig.serializer()
-private val defaultInstance: () -> AppConfig = {
-    AppConfig(
-        UsbCamera(
-            Resolution(640, 480),
-            StreamConfig(
-                enabled = true
-            )
-        ),
-        NetworkTableConfig(
-            "10.59.87.2",
-            "AetherVision"
-        )
-    )
-}
 
 object Config {
 
