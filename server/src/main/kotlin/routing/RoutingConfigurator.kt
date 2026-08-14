@@ -25,6 +25,7 @@ fun Application.configureRouting() {
     routing {
         configRouting()
         loggingRoute()
+        streamRouting()
         staticResources("/", "dashboard")
     }
 }
