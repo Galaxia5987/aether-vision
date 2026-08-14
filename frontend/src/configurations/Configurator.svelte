@@ -44,6 +44,9 @@
             config.input = selectedInput;
         }
     }
+    client.subscribeToLogs((msg) => {
+        console.log(msg)
+    })
 
     $: handleSelectionChange(inputSelection);
 </script>

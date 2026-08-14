@@ -9,7 +9,7 @@ repositories {
     mavenCentral()
 }
 
-val ktorVersion = "2.3.11"
+val ktorVersion = "3.5.2"
 
 kotlin {
     jvm()
@@ -49,6 +49,7 @@ kotlin {
         val jsMain by getting {
             dependencies {
                 implementation("io.ktor:ktor-client-js:${ktorVersion}")
+                implementation(ktorLibs.sse)
             }
         }
     }

@@ -7,10 +7,12 @@ import io.ktor.server.http.content.staticResources
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.resources.Resources
 import io.ktor.server.routing.routing
+import io.ktor.server.sse.SSE
 import kotlinx.serialization.json.Json
 
 fun Application.configureRouting() {
     install(Resources)
+    install(SSE)
     install(ContentNegotiation) {
         json(
             Json {
@@ -22,6 +24,7 @@ fun Application.configureRouting() {
     }
     routing {
         configRouting()
+        loggingRoute()
         staticResources("/", "dashboard")
     }
 }

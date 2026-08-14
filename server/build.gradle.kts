@@ -17,6 +17,7 @@ dependencies {
     implementation(ktorLibs.server.contentNegotiation)
     implementation(ktorLibs.serialization.kotlinx.json)
     implementation(ktorLibs.server.resources)
+    implementation(ktorLibs.server.sse)
     testImplementation(kotlin("test"))
 }
 
