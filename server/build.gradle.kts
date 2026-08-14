@@ -38,6 +38,7 @@ val installFrontend = tasks.register<Exec>("installFrontend") {
     workingDir = frontendDir
     dependsOn(buildUtils)
     commandLine(npmCommand, "install")
+    commandLine(npmCommand, "install","utils","--force")
 }
 
 val buildFrontend = tasks.register<Exec>("buildFrontend") {
