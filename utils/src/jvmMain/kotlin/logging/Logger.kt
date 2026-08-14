@@ -1,3 +1,5 @@
+package logging
+
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.LoggerContext
 import ch.qos.logback.classic.encoder.PatternLayoutEncoder
@@ -5,6 +7,7 @@ import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.ConsoleAppender
 import ch.qos.logback.core.rolling.RollingFileAppender
 import ch.qos.logback.core.rolling.TimeBasedRollingPolicy
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 fun configureLogger() {
@@ -49,7 +52,7 @@ fun configureLogger() {
     fileAppender.start()
 
     // Configure Root Logger
-    context.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME).apply {
+    context.getLogger(Logger.ROOT_LOGGER_NAME).apply {
         level = Level.INFO
         addAppender(consoleAppender)
         addAppender(fileAppender)
