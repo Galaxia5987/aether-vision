@@ -1,15 +1,15 @@
 package config.structs
 
-import kotlinx.serialization.Serializable
 import kotlin.js.ExperimentalJsExport
 import kotlin.js.JsExport
+import kotlinx.serialization.Serializable
 
 @OptIn(ExperimentalJsExport::class)
 @JsExport
 @Serializable
 data class AppConfig(
     var input: InputConfig,
-    var networkTable: NetworkTableConfig
+    var networkTable: NetworkTableConfig,
 )
 
 @OptIn(ExperimentalJsExport::class)
@@ -18,12 +18,10 @@ fun defaultInstance(): AppConfig =
     AppConfig(
         UsbCamera(
             Resolution(640, 480),
-            StreamConfig(
-                enabled = true
-            )
+            StreamConfig(enabled = true),
         ),
         NetworkTableConfig(
             "10.59.87.2",
-            "AetherVision"
-        )
+            "AetherVision",
+        ),
     )

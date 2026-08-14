@@ -13,7 +13,7 @@ object EnvironmentConfig {
             null -> Environment.PROD
             else -> Environment.DEV
         }.also {
-            if(it == Environment.DEV){
+            if (it == Environment.DEV) {
                 logger.info("Development mode enabled!")
             }
         }

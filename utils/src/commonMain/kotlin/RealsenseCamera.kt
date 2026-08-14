@@ -1,9 +1,9 @@
 package config.structs
 
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
 import kotlin.js.ExperimentalJsExport
 import kotlin.js.JsExport
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
 @OptIn(ExperimentalJsExport::class)
 @JsExport
@@ -20,11 +20,11 @@ data class RealsenseCamera(
             RealsenseCamera(
                 Resolution(
                     640,
-                    480
+                    480,
                 ),
                 30,
                 colorStream = StreamConfig(enabled = true),
-                depthStream = StreamConfig(enabled = true)
+                depthStream = StreamConfig(enabled = true),
             )
     }
 }

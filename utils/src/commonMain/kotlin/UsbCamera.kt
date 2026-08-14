@@ -1,9 +1,9 @@
 package config.structs
 
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
 import kotlin.js.ExperimentalJsExport
 import kotlin.js.JsExport
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
 @OptIn(ExperimentalJsExport::class)
 @JsExport
@@ -11,14 +11,14 @@ import kotlin.js.JsExport
 @Serializable
 data class UsbCamera(
     var resolution: Resolution,
-    var colorStream: StreamConfig
-) : InputConfig(){
+    var colorStream: StreamConfig,
+) : InputConfig() {
     companion object : DefaultValue<UsbCamera> {
         override fun defaultInstance(): UsbCamera =
             UsbCamera(
                 Resolution(
                     640,
-                    480
+                    480,
                 ),
                 colorStream = StreamConfig(enabled = true),
             )

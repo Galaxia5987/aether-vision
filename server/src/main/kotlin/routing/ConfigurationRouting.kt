@@ -6,7 +6,7 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 
-fun Route.configRouting(){
+fun Route.configRouting() {
     put("/api/config") {
         Config.save(call.receive())
         call.respondText(status = HttpStatusCode.Accepted, text = "OK")

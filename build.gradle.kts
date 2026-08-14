@@ -12,18 +12,26 @@ subprojects {
     apply(plugin = "com.diffplug.spotless")
 
     configure<SpotlessExtension> {
+        format("misc"){
+            target("*gradle*", ".gitattributes", ".gitignore")
+            trimTrailingWhitespace()
+            leadingTabsToSpaces(4)
+            endWithNewline()
+        }
         java {
             target("**/*.java")
-            googleJavaFormat()
+            googleJavaFormat().aosp()
             trimTrailingWhitespace()
             endWithNewline()
         }
-
         kotlin {
             target("**/*.kt")
-            ktlint()
-            trimTrailingWhitespace()
-            endWithNewline()
+            ktfmt().googleStyle().configure {
+                it.setBlockIndent(4)
+                it.setContinuationIndent(4)
+                it.setMaxWidth(80)
+                it.setRemoveUnusedImports(true)
+            }
         }
     }
 

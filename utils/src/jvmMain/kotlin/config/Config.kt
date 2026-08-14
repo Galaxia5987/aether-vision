@@ -1,14 +1,10 @@
 package config
 
 import config.structs.AppConfig
-import config.structs.NetworkTableConfig
-import config.structs.Resolution
-import config.structs.StreamConfig
-import config.structs.UsbCamera
 import config.structs.defaultInstance
+import java.io.File
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
-import java.io.File
 
 private val configFile = File("config/config.json")
 private val serializer = AppConfig.serializer()
@@ -29,19 +25,22 @@ object Config {
             return cachedConfig!!
         }
 
-        val config = if (configFile.exists()) {
-            val fileContent = configFile.readText()
-            try {
-                jsonFormat.decodeFromString(serializer, fileContent)
-            } catch (e: Exception) {
-                logger.error("Failed to parse configuration. Falling back to defaults. Error: ${e.message}")
-                defaultInstance()
+        val config =
+            if (configFile.exists()) {
+                val fileContent = configFile.readText()
+                try {
+                    jsonFormat.decodeFromString(serializer, fileContent)
+                } catch (e: Exception) {
+                    logger.error(
+                        "Failed to parse configuration. Falling back to defaults. Error: ${e.message}"
+                    )
+                    defaultInstance()
+                }
+            } else {
+                val defaultConfig = defaultInstance()
+                save(defaultConfig)
+                return defaultConfig
             }
-        } else {
-            val defaultConfig = defaultInstance()
-            save(defaultConfig)
-            return defaultConfig
-        }
 
         cachedConfig = config
         return config
