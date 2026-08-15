@@ -11,7 +11,7 @@ import kotlinx.coroutines.launch
 
 interface CameraConfiguration
 
-abstract class CameraBase<T : CameraConfiguration>(private val streamTypes: List<StreamType>) {
+abstract class CameraBase<T : CameraConfiguration>(val streamTypes: List<StreamType>) {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var job: Job? = null
