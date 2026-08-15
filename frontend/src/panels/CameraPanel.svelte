@@ -11,23 +11,17 @@
 <Pane defaultSize={50} minSize={20}>
 
     <PaneGroup direction="vertical" autoSaveId="camera-stack-split">
-        {#if streams.includes("color") }
-        <Pane defaultSize={50} minSize={10}>
-            <div class="stream-container">
-                <img src="/api/stream/color" alt="RGB feed" />
-            </div>
-        </Pane>
-        {/if}
+        {#each streams as type, index (type)}
+            <Pane defaultSize={50} minSize={10}>
+                <div class="stream-container">
+                    <img src={`/api/stream/${type}`} alt={type} />
+                </div>
+            </Pane>
 
-        <PaneResizer class="resizer" />
-
-        {#if streams.includes("depth")}
-        <Pane defaultSize={50} minSize={10}>
-            <div class="stream-container">
-                <img src="/api/stream/depth" alt="Depth feed" />
-            </div>
-        </Pane>
-        {/if}
+            {#if index < streams.length - 1}
+                <PaneResizer class="resizer" />
+            {/if}
+        {/each}
 
     </PaneGroup>
 </Pane>
