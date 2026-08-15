@@ -7,24 +7,20 @@ import kotlinx.serialization.Serializable
 
 @OptIn(ExperimentalJsExport::class)
 @JsExport
-@SerialName("RealsenseCamera")
+@SerialName("UsbCamera")
 @Serializable
-data class RealsenseCamera(
+data class UsbCameraConfig(
     var resolution: Resolution,
-    var fps: Int,
     var colorStream: StreamConfig,
-    var depthStream: StreamConfig,
 ) : InputConfig() {
-    companion object : DefaultValue<RealsenseCamera> {
-        override fun defaultInstance(): RealsenseCamera =
-            RealsenseCamera(
+    companion object : DefaultValue<UsbCameraConfig> {
+        override fun defaultInstance(): UsbCameraConfig =
+            UsbCameraConfig(
                 Resolution(
                     640,
                     480,
                 ),
-                30,
                 colorStream = StreamConfig(enabled = true),
-                depthStream = StreamConfig(enabled = true),
             )
     }
 }

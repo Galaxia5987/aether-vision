@@ -18,9 +18,9 @@
             console.error(e);
         }
 
-        if(config.input instanceof configPkg.structs.UsbCamera){
+        if(config.input instanceof configPkg.structs.UsbCameraConfig){
             inputSelection = "UsbCamera"
-        }else if(config.input instanceof configPkg.structs.RealsenseCamera){
+        }else if(config.input instanceof configPkg.structs.RealsenseCameraConfig){
             inputSelection = "RealsenseCamera"
         }
     });
@@ -52,7 +52,7 @@
 <Pane title="Configuration" localStoreId="config">
     <Folder title="Input">
         <List bind:value={inputSelection} label="Type" options={inputOptions} />
-        {#if config.input instanceof configPkg.structs.UsbCamera}
+        {#if config.input instanceof configPkg.structs.UsbCameraConfig}
             <Folder title="Resolution">
                 <Slider bind:value={config.input.resolution.width} label="Width" />
                 <Slider bind:value={config.input.resolution.height} label="Height" />
@@ -60,7 +60,7 @@
             <Folder title="Color Stream">
                 <Checkbox bind:value={config.input.colorStream.enabled} label="Enable" />
             </Folder>
-        {:else if config.input instanceof configPkg.structs.RealsenseCamera}
+        {:else if config.input instanceof configPkg.structs.RealsenseCameraConfig}
             <Folder title="Resolution">
                 <Slider bind:value={config.input.resolution.width} label="Width" />
                 <Slider bind:value={config.input.resolution.height} label="Height" />

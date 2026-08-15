@@ -16,7 +16,7 @@ data class AppConfig(
 @JsExport
 fun defaultInstance(): AppConfig =
     AppConfig(
-        UsbCamera(
+        UsbCameraConfig(
             Resolution(640, 480),
             StreamConfig(enabled = true),
         ),

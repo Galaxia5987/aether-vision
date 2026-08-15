@@ -16,8 +16,8 @@ data class Resolution(
 
 val options =
     mapOf<String, InputConfig>(
-        Pair("RealsenseCamera", RealsenseCamera.defaultInstance()),
-        Pair("UsbCamera", UsbCamera.defaultInstance()),
+        Pair("RealsenseCamera", RealsenseCameraConfig.defaultInstance()),
+        Pair("UsbCamera", UsbCameraConfig.defaultInstance()),
     )
 
 @OptIn(ExperimentalJsExport::class)
