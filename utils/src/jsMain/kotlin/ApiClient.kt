@@ -44,14 +44,18 @@ class ConfigClient(private val baseUrl: String) {
         client.sse("$baseUrl$logsEndpoint") {
             incoming.collect { event ->
                 event.data?.let { dataString ->
-                    val logsList = jsonSerializer.decodeFromString<List<String>>(dataString)
+                    val logsList =
+                        jsonSerializer.decodeFromString<List<String>>(
+                            dataString
+                        )
                     onLogsReceived(logsList.toTypedArray())
                 }
             }
         }
     }
 
-    suspend fun fetchStreamBrokers(): List<String> = client.get("$baseUrl/api/stream").body()
+    suspend fun fetchStreamBrokers(): List<String> =
+        client.get("$baseUrl/api/stream").body()
 
     fun close() = client.close()
 }

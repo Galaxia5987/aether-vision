@@ -10,10 +10,13 @@ import io.ktor.server.util.*
 fun Route.streamRouting() {
     get("/api/stream/{brokerName}") {
         val brokerName = call.parameters.getOrFail("brokerName")
-        if(StreamingBrokers.hasBroker(brokerName)){
+        if (StreamingBrokers.hasBroker(brokerName)) {
             handleMjpegStream(StreamingBrokers.getBroker(brokerName), call)
-        }else {
-            call.respondText(status = HttpStatusCode.NotFound, text = "Broker not found")
+        } else {
+            call.respondText(
+                status = HttpStatusCode.NotFound,
+                text = "Broker not found",
+            )
         }
     }
 

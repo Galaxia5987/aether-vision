@@ -40,12 +40,13 @@ fun configureLogger() {
             setEncoder(encoder)
         }
 
-    val streamingAppender = StreamingAppender().apply {
-        setContext(context)
-        name = "STREAMING"
-        this.encoder = encoder
-        start()
-    }
+    val streamingAppender =
+        StreamingAppender().apply {
+            setContext(context)
+            name = "STREAMING"
+            this.encoder = encoder
+            start()
+        }
 
     fileAppender.rollingPolicy =
         TimeBasedRollingPolicy<ILoggingEvent>().apply {

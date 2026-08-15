@@ -8,14 +8,20 @@ object StreamingBrokers {
 
     fun addBroker(streamType: String, streamPusher: StreamPusher) {
         require(!hasBroker(streamType))
-        brokers[streamType] = StreamBroker(
-            16L, streamPusher
-        ).also {
-            it.startStream()
-        }
+        brokers[streamType] =
+            StreamBroker(
+                    16L,
+                    streamPusher,
+                )
+                .also {
+                    it.startStream()
+                }
     }
 
-    fun getBroker(streamType: String): StreamBroker = brokers.getOrElse(streamType) { error("Broker named $streamType is not registered!") }
+    fun getBroker(streamType: String): StreamBroker =
+        brokers.getOrElse(streamType) {
+            error("Broker named $streamType is not registered!")
+        }
 
     fun hasBroker(streamType: String): Boolean = brokers.containsKey(streamType)
 }

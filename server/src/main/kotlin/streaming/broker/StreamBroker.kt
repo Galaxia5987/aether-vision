@@ -1,17 +1,21 @@
 package com.galaxia5987.server.streaming.broker
 
+import kotlin.time.Duration.Companion.milliseconds
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.*
-import kotlin.time.Duration.Companion.milliseconds
 
 private val emptyFramePusher = EmptyFramePusher()
 
 class StreamBroker(
     private val loopTime: Long,
-    private val streamPusher: StreamPusher
+    private val streamPusher: StreamPusher,
 ) {
-    private val mutFrames = MutableSharedFlow<ByteArray>(replay = 1) // cache one frame for new subscribers. might reduce if it creates notable overhead.
+    private val mutFrames =
+        MutableSharedFlow<ByteArray>(
+            replay = 1
+        ) // cache one frame for new subscribers. might reduce if it creates
+    // notable overhead.
     val frames: SharedFlow<ByteArray> = mutFrames
 
     private val brokerScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -22,7 +26,9 @@ class StreamBroker(
 
         pollingJob = brokerScope.launch {
             while (isActive) {
-                pushFrame(streamPusher.acceptFrame() ?: emptyFramePusher.acceptFrame())
+                pushFrame(
+                    streamPusher.acceptFrame() ?: emptyFramePusher.acceptFrame()
+                )
                 delay(loopTime.milliseconds)
             }
         }

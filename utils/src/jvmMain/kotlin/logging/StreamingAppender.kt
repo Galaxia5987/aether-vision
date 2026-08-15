@@ -8,7 +8,9 @@ class StreamingAppender : AppenderBase<ILoggingEvent>() {
     var encoder: PatternLayoutEncoder? = null
 
     override fun append(eventObject: ILoggingEvent) {
-        val logMessage = encoder?.layout?.doLayout(eventObject) ?: eventObject.formattedMessage
+        val logMessage =
+            encoder?.layout?.doLayout(eventObject)
+                ?: eventObject.formattedMessage
         LogBroker.emitLog(logMessage)
     }
 }

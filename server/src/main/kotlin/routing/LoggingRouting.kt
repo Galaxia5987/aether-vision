@@ -6,7 +6,7 @@ import io.ktor.sse.ServerSentEvent
 import kotlinx.serialization.json.Json
 import logging.LogBroker
 
-fun Route.loggingRoute(){
+fun Route.loggingRoute() {
     sse("/logs") {
         LogBroker.logFlow.collect { logList ->
             val payload = Json.encodeToString(logList)

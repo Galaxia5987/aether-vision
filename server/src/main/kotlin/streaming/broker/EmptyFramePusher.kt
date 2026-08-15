@@ -2,10 +2,11 @@
 
 package com.galaxia5987.server.streaming.broker
 
-
 private object ResourceHelper {
     private fun loadJpegFromResources(fileName: String): ByteArray {
-        val inputStream = javaClass.getResourceAsStream("/$fileName") ?: error("Resource file not found: $fileName")
+        val inputStream =
+            javaClass.getResourceAsStream("/$fileName")
+                ?: error("Resource file not found: $fileName")
 
         return inputStream.use { it.readBytes() }
     }
