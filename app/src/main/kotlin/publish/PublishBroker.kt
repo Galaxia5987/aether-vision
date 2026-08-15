@@ -6,6 +6,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.util.concurrent.CopyOnWriteArrayList
 
 interface Publishable {
     fun copy(): Publishable
@@ -17,7 +18,7 @@ fun interface PublishEventListener {
 
 object PublishBroker {
 
-    private val publishers: MutableList<PublishEventListener> = mutableListOf()
+    private val publishers = CopyOnWriteArrayList<PublishEventListener>()
 
     private var job: Job? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -40,5 +41,9 @@ object PublishBroker {
 
     fun addPublisher(publisher: PublishEventListener) {
         publishers += publisher
+    }
+
+    fun removePublisher(publisher: PublishEventListener) {
+        publishers -= publisher
     }
 }
