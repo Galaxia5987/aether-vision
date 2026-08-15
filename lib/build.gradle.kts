@@ -32,12 +32,13 @@ val javacppBuild = tasks.register<JavaExec>("javacppBuild") {
     mainClass.set("org.bytedeco.javacpp.tools.Builder")
     classpath = sourceSets["main"].runtimeClasspath
 
-    systemProperty("org.bytedeco.javacpp.platform.includepath", file("../native").absolutePath)
+    systemProperty("org.bytedeco.javacpp.platform.includepath", file("../native/src").absolutePath)
     systemProperty("org.bytedeco.javacpp.platform.linkpath", file("../native/build").absolutePath)
 
     args(
         "-d", file("build/classes/kotlin/main").absolutePath,
-        "com.galaxia5987.NativeLibrary"
+        "com.galaxia5987.lib.UsbCameraWrapper",
+        "com.galaxia5987.lib.ByteVector"
     )
 }
 
