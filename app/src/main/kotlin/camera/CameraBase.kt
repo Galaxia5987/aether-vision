@@ -9,9 +9,8 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-interface CameraConfiguration
 
-abstract class CameraBase<T : CameraConfiguration>(val streamTypes: List<StreamType>) {
+abstract class CameraBase<T>(val streamTypes: List<StreamType>) {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var job: Job? = null
