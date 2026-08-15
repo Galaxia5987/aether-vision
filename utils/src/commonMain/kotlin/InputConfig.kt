@@ -25,10 +25,6 @@ val options =
 @Serializable
 sealed class InputConfig {
     companion object {
-        @OptIn(
-            ExperimentalSerializationApi::class,
-            InternalSerializationApi::class,
-        )
         fun getOptions(): Map<String, InputConfig> = options
     }
 }
