@@ -7,6 +7,7 @@ dependencies {
     implementation(project(":lib"))
     implementation(project(":server"))
     implementation(project(":utils"))
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
 }
 
 application {
