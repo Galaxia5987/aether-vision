@@ -51,5 +51,7 @@ class ConfigClient(private val baseUrl: String) {
         }
     }
 
+    suspend fun fetchStreamBrokers(): List<String> = client.get("$baseUrl/api/stream").body()
+
     fun close() = client.close()
 }

@@ -1,24 +1,33 @@
 <script lang="ts">
     import { Pane, PaneGroup, PaneResizer } from "paneforge";
+    import {onMount} from "svelte";
+    import {client} from "../api/api"
+    let streams: readonly string[] = [];
+    onMount(async () => {
+        streams = (await client.fetchStreamBrokers()).asJsReadonlyArrayView();
+    })
 </script>
 
 <Pane defaultSize={50} minSize={20}>
 
     <PaneGroup direction="vertical" autoSaveId="camera-stack-split">
-
+        {#if streams.includes("color") }
         <Pane defaultSize={50} minSize={10}>
             <div class="stream-container">
-                <img src="http://localhost:8080/stream1" alt="RGB feed" />
+                <img src="/api/stream/color" alt="RGB feed" />
             </div>
         </Pane>
+        {/if}
 
         <PaneResizer class="resizer" />
 
+        {#if streams.includes("depth")}
         <Pane defaultSize={50} minSize={10}>
             <div class="stream-container">
-                <img src="http://localhost:8080/stream2" alt="Depth feed" />
+                <img src="/api/stream/depth" alt="Depth feed" />
             </div>
         </Pane>
+        {/if}
 
     </PaneGroup>
 </Pane>

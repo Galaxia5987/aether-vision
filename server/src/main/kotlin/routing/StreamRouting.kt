@@ -2,14 +2,10 @@ package com.galaxia5987.server.routing
 
 import com.galaxia5987.server.streaming.broker.StreamingBrokers
 import com.galaxia5987.server.streaming.handleMjpegStream
-import io.ktor.http.HttpStatusCode
-import io.ktor.server.response.respondText
-import io.ktor.server.routing.Route
-import io.ktor.server.routing.get
-import io.ktor.server.util.getOrFail
-import kotlinx.serialization.json.Json
-
-private val jsonSerializer = Json.Default
+import io.ktor.http.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
+import io.ktor.server.util.*
 
 fun Route.streamRouting() {
     get("/api/stream/{brokerName}") {
@@ -22,6 +18,6 @@ fun Route.streamRouting() {
     }
 
     get("/api/stream") {
-        call.respondText(status = HttpStatusCode.OK, text = jsonSerializer.encodeToString(StreamingBrokers.brokerNames))
+        call.respond(StreamingBrokers.brokerNames)
     }
 }
