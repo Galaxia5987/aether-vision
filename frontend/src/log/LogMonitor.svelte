@@ -13,9 +13,8 @@
         logs = truncateLog(currentLog);
     }
 
-    client.subscribeToLogs((msg: string) => {
-        const arr: string[] = JSON.parse(msg);
-        acceptLog(arr.join("\n"));
+    client.subscribeToLogs((msg: string[]) => {
+        acceptLog(msg.join("\n"));
     })
 
 </script>
