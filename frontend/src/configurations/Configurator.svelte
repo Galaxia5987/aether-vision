@@ -8,6 +8,8 @@
 
     let config = configPkg.structs.defaultInstance();
 
+    let inputSelection: string;
+
     // Fetch configuration after component mount to prevent blocking rendering
     onMount(async () => {
         try {
@@ -15,25 +17,25 @@
         } catch (e) {
             console.error(e);
         }
-    });
 
+        if(config.input instanceof configPkg.structs.UsbCamera){
+            inputSelection = "UsbCamera"
+        }else if(config.input instanceof configPkg.structs.RealsenseCamera){
+            inputSelection = "RealsenseCamera"
+        }
+    });
     async function save() {
         await client.updateConfig(config);
+
     }
-
     const inputOptions: Record<string, string> = {};
-    const inputDefaults = configPkg.structs.InputConfig.Companion.getOptions().asJsReadonlyMapView();
 
+    const inputDefaults = configPkg.structs.InputConfig.Companion.getOptions().asJsReadonlyMapView();
     inputDefaults.forEach((value: configPkg.structs.InputConfig, key: string) => {
         inputOptions[key] = key;
+
     });
 
-    let inputSelection: string;
-    if(config.input instanceof configPkg.structs.UsbCamera){
-        inputSelection = "UsbCamera"
-    }else if(config.input instanceof configPkg.structs.RealsenseCamera){
-        inputSelection = "RealsenseCamera"
-    }
 
     function handleSelectionChange(selection: string) {
         if (!selection) return;
