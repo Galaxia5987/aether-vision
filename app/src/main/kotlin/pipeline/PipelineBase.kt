@@ -8,7 +8,7 @@ import com.galaxia5987.app.publish.Publishable
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
 
-abstract class PipelineBase(protected val camera: CameraBase<*>, val neededStreams: List<StreamType>) {
+abstract class PipelineBase(protected val camera: CameraBase, val neededStreams: List<StreamType>) {
 
     abstract fun init()
     abstract fun periodic(frameset: Map<StreamType, ByteArray>)

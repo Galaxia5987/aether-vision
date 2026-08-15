@@ -1,6 +1,8 @@
 package com.galaxia5987.app.camera
 
 import com.galaxia5987.server.streaming.broker.StreamPusher
+import com.galaxia5987.server.streaming.broker.StreamingBrokers
+import config.structs.InputConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -11,19 +13,19 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 
-abstract class CameraBase<T>(val streamTypes: List<StreamType>) {
+abstract class CameraBase(val streamTypes: List<StreamType>) {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var job: Job? = null
 
     private val framesetFlow = MutableSharedFlow<Map<StreamType, ByteArray>>()
 
-    protected abstract fun startCamera(config: T)
+    protected abstract fun startCamera(config: InputConfig)
     protected abstract fun stopCamera()
     protected abstract fun pollFrame(streamType: StreamType): ByteArray
     protected abstract fun pollJpegFrame(streamType: StreamType): ByteArray?
 
-    fun start(config: T) {
+    fun start(config: InputConfig) {
         if (job?.isActive == true) return
         startCamera(config)
 
@@ -42,6 +44,9 @@ abstract class CameraBase<T>(val streamTypes: List<StreamType>) {
                 framesetFlow.emit(frameset)
             }
             stopCamera()
+        }
+        streamTypes.forEach {
+            StreamingBrokers.addBroker(it.displayName, makeStreamPusher(it))
         }
     }
 

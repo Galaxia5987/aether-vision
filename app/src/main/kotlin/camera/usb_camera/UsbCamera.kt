@@ -4,9 +4,10 @@ import com.galaxia5987.lib.ByteVector
 import com.galaxia5987.lib.UsbCameraWrapper
 import com.galaxia5987.app.camera.CameraBase
 import com.galaxia5987.app.camera.StreamType
+import config.structs.InputConfig
 import config.structs.UsbCameraConfig
 
-class UsbCamera : CameraBase<UsbCameraConfig>(listOf(StreamType.COLOR)) {
+class UsbCamera : CameraBase(listOf(StreamType.COLOR)) {
 
     private var camera: UsbCameraWrapper? = null
     var width: Int = 0
@@ -18,7 +19,7 @@ class UsbCamera : CameraBase<UsbCameraConfig>(listOf(StreamType.COLOR)) {
 
     private var latestByteVector: ByteVector? = null
 
-    override fun startCamera(config: UsbCameraConfig) {
+    override fun startCamera(config: InputConfig) {
         camera = UsbCameraWrapper(0)
     }
 
