@@ -2,8 +2,6 @@ package config.structs
 
 import kotlin.js.ExperimentalJsExport
 import kotlin.js.JsExport
-import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.Serializable
 
 @OptIn(ExperimentalJsExport::class)

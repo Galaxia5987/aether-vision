@@ -1,5 +1,7 @@
 package com.galaxia5987.lib
 
+import kotlin.collections.get
+import kotlin.text.toInt
 import org.bytedeco.javacpp.BytePointer
 import org.bytedeco.javacpp.Loader
 import org.bytedeco.javacpp.Pointer
@@ -10,8 +12,6 @@ import org.bytedeco.javacpp.annotation.Index
 import org.bytedeco.javacpp.annotation.Name
 import org.bytedeco.javacpp.annotation.Namespace
 import org.bytedeco.javacpp.annotation.Platform
-import kotlin.collections.get
-import kotlin.text.toInt
 
 @Platform(include = ["usb/UsbCamera.hpp"], link = ["aether-vision-lib"])
 @Name("UsbCamera")
@@ -26,17 +26,13 @@ class UsbCameraWrapper : Pointer {
 
     private external fun allocate(deviceId: Int)
 
-    @Cast("bool")
-    external fun open(deviceId: Int): Boolean
+    @Cast("bool") external fun open(deviceId: Int): Boolean
 
-    @Name("close")
-    external fun closeCamera()
+    @Name("close") external fun closeCamera()
 
-    @Cast("bool")
-    external fun isOpened(): Boolean
+    @Cast("bool") external fun isOpened(): Boolean
 
-    @ByVal
-    external fun readFrame(): ByteVector
+    @ByVal external fun readFrame(): ByteVector
 
     external fun getWidth(): Int
 
@@ -57,7 +53,7 @@ class UsbCameraWrapper : Pointer {
             width: Int,
             height: Int,
             channels: Int,
-            quality: Int = 95
+            quality: Int = 95,
         ): ByteVector
     }
 }
@@ -83,19 +79,18 @@ class ByteVector : Pointer {
     constructor(p: Pointer) : super(p)
 
     private external fun allocate()
+
     private external fun allocate(n: Long)
 
     external fun size(): Long
+
     external fun resize(n: Long)
 
-    @Index
-    external fun get(i: Long): Byte
+    @Index external fun get(i: Long): Byte
 
-    @Index
-    external fun put(i: Long, value: Byte): ByteVector
+    @Index external fun put(i: Long, value: Byte): ByteVector
 
-    @Cast("signed char*")
-    external fun data(): BytePointer
+    @Cast("signed char*") external fun data(): BytePointer
 
     fun get(): ByteArray {
         val array = ByteArray(size().toInt())
@@ -120,4 +115,3 @@ class ByteVector : Pointer {
         return byteArray
     }
 }
-

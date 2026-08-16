@@ -1,10 +1,10 @@
 package config.structs.pipeline
 
 import config.structs.DefaultValue
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
 import kotlin.js.ExperimentalJsExport
 import kotlin.js.JsExport
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
 @OptIn(ExperimentalJsExport::class)
 @JsExport

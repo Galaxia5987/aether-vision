@@ -8,19 +8,28 @@ import com.galaxia5987.app.publish.Publishable
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
 
-abstract class PipelineBase(protected val camera: CameraBase, val neededStreams: List<StreamType>) {
+abstract class PipelineBase(
+    protected val camera: CameraBase,
+    val neededStreams: List<StreamType>,
+) {
 
     abstract fun init()
+
     abstract fun periodic(frameset: Map<StreamType, ByteArray>)
+
     abstract fun publish(toPublish: Publishable)
+
     abstract fun end()
-    protected val publishable: Publishable = object : Publishable {
-        override fun copy(): Publishable = this
-    }
+
+    protected val publishable: Publishable =
+        object : Publishable {
+            override fun copy(): Publishable = this
+        }
 
     private var job: Job? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private val publishFlow = MutableSharedFlow<Publishable>(extraBufferCapacity = 2)
+    private val publishFlow =
+        MutableSharedFlow<Publishable>(extraBufferCapacity = 2)
 
     private val publishListener = PublishEventListener {
         publishFlow.collect {
@@ -29,11 +38,11 @@ abstract class PipelineBase(protected val camera: CameraBase, val neededStreams:
     }
 
     fun start() {
-        if(job?.isActive == true) return
+        if (job?.isActive == true) return
 
-        require(
-            neededStreams.all { camera.streamTypes.contains(it) }
-        ) { "Camera of type ${camera::class.simpleName} cannot comply with this pipeline's stream requirements" }
+        require(neededStreams.all { camera.streamTypes.contains(it) }) {
+            "Camera of type ${camera::class.simpleName} cannot comply with this pipeline's stream requirements"
+        }
 
         PublishBroker.addPublisher(publishListener)
 
@@ -46,7 +55,7 @@ abstract class PipelineBase(protected val camera: CameraBase, val neededStreams:
                     }
                     publishFlow.emit(publishable.copy())
                 }
-            }finally {
+            } finally {
                 end()
             }
         }
@@ -56,5 +65,4 @@ abstract class PipelineBase(protected val camera: CameraBase, val neededStreams:
         job?.cancel()
         PublishBroker.removePublisher(publishListener)
     }
-
 }

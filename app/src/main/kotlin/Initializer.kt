@@ -11,10 +11,11 @@ import logging.configureLogger
 
 object Initializer {
 
-    val camera: CameraBase = when(Config.load().input) {
-        is UsbCameraConfig -> UsbCamera()
-        is RealsenseCameraConfig -> TODO("Not yet implemented")
-    }
+    val camera: CameraBase =
+        when (Config.load().input) {
+            is UsbCameraConfig -> UsbCamera()
+            is RealsenseCameraConfig -> TODO("Not yet implemented")
+        }
 
     fun init() {
         configureLogger()

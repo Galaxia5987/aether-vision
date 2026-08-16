@@ -1,8 +1,8 @@
 package config.structs.pipeline
 
-import kotlinx.serialization.Serializable
 import kotlin.js.ExperimentalJsExport
 import kotlin.js.JsExport
+import kotlinx.serialization.Serializable
 
 val pipelineOptions =
     mutableMapOf<String, PipelineConfig>().apply {

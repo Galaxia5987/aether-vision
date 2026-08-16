@@ -1,12 +1,12 @@
 package com.galaxia5987.app.publish
 
+import java.util.concurrent.CopyOnWriteArrayList
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import java.util.concurrent.CopyOnWriteArrayList
 
 interface Publishable {
     fun copy(): Publishable
@@ -24,10 +24,10 @@ object PublishBroker {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     fun startPublishing() {
-        if(job?.isActive == true) return
+        if (job?.isActive == true) return
 
         job = scope.launch {
-            while(isActive){
+            while (isActive) {
                 publishers.forEach {
                     it.publish()
                 }
@@ -35,7 +35,7 @@ object PublishBroker {
         }
     }
 
-    fun stop(){
+    fun stop() {
         job?.cancel()
     }
 
