@@ -30,8 +30,14 @@
         }
     });
 
+    let saveTitle = "Save";
+
     async function save() {
         await client.updateConfig(config);
+        saveTitle = "Saved!";
+        setTimeout(()=> {
+            saveTitle = "Save";
+        }, 2000);
     }
 
     $: handleSelection(inputSelection, inputDefaults, (selected) => { config.input = selected; });
@@ -70,5 +76,5 @@
         <Text bind:value={config.networkTable.server} label="Server Address" />
         <Text bind:value={config.networkTable.table} label="Table Path" />
     </Folder>
-    <Button on:click={save} title="Save" />
+    <Button on:click={save} title={saveTitle} />
 </Pane>
