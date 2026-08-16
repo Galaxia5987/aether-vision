@@ -1,16 +1,17 @@
 <script lang="ts">
     import { onMount } from 'svelte';
-    import { Pane, Folder, Text, Button, Slider, Checkbox, List, type ListOptions } from 'svelte-tweakpane-ui';
+    import { Pane, Folder, Text, Button, Slider, Checkbox, List } from 'svelte-tweakpane-ui';
     import { config as configPkg } from 'utils';
-    type AppConfig = configPkg.structs.AppConfig;
-    const ConfigClient = configPkg.ConfigClient;
-    import {client} from '../api/api'
+    import { client } from '../api/api';
+    import { getDropdownOptions, handleSelection } from './configHelpers';
 
     let config = configPkg.structs.defaultInstance();
-
     let inputSelection: string;
+    let pipelineSelection: string;
 
-    // Fetch configuration after component mount to prevent blocking rendering
+    const { options: inputOptions, defaults: inputDefaults } = getDropdownOptions(configPkg.structs.InputConfig.Companion);
+    const { options: pipelineOptions, defaults: pipelineDefaults } = getDropdownOptions(configPkg.structs.pipeline.PipelineConfig.Companion);
+
     onMount(async () => {
         try {
             config = await client.fetchConfig();
@@ -18,35 +19,23 @@
             console.error(e);
         }
 
-        if(config.input instanceof configPkg.structs.UsbCameraConfig){
-            inputSelection = "UsbCamera"
-        }else if(config.input instanceof configPkg.structs.RealsenseCameraConfig){
-            inputSelection = "RealsenseCamera"
+        if (config.input instanceof configPkg.structs.UsbCameraConfig) {
+            inputSelection = "UsbCamera";
+        } else if (config.input instanceof configPkg.structs.RealsenseCameraConfig) {
+            inputSelection = "RealsenseCamera";
+        }
+
+        if (config.pipeline instanceof configPkg.structs.pipeline.EmptyPipelineConfig) {
+            pipelineSelection = "EmptyPipeline";
         }
     });
+
     async function save() {
         await client.updateConfig(config);
-
-    }
-    const inputOptions: Record<string, string> = {};
-
-    const inputDefaults = configPkg.structs.InputConfig.Companion.getOptions().asJsReadonlyMapView();
-    inputDefaults.forEach((value: configPkg.structs.InputConfig, key: string) => {
-        inputOptions[key] = key;
-
-    });
-
-
-    function handleSelectionChange(selection: string) {
-        if (!selection) return;
-
-        const selectedInput = inputDefaults.get(selection);
-        if (selectedInput) {
-            config.input = selectedInput;
-        }
     }
 
-    $: handleSelectionChange(inputSelection);
+    $: handleSelection(inputSelection, inputDefaults, (selected) => { config.input = selected; });
+    $: handleSelection(pipelineSelection, pipelineDefaults, (selected) => { config.pipeline = selected; });
 </script>
 
 <Pane title="Configuration" localStoreId="config">
@@ -73,6 +62,9 @@
                 <Checkbox bind:value={config.input.depthStream.enabled} label="Enable" />
             </Folder>
         {/if}
+    </Folder>
+    <Folder title="Pipeline">
+        <List bind:value={pipelineSelection} label="Type" options={pipelineOptions} />
     </Folder>
     <Folder title="Network Table">
         <Text bind:value={config.networkTable.server} label="Server Address" />
