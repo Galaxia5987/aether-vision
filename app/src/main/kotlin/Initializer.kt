@@ -33,4 +33,11 @@ object Initializer {
         PublishBroker.startPublishing()
         Server.start()
     }
+
+    fun teardown() {
+        pipeline.stop()
+        camera.stop()
+        PublishBroker.stop()
+        Server.stop()
+    }
 }
