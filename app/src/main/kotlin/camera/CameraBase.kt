@@ -12,6 +12,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.slf4j.Logger
@@ -93,9 +94,9 @@ abstract class CameraBase(val streamTypes: List<StreamType>) {
     }
 
     suspend fun collectFrames(
-        collector: FlowCollector<Map<StreamType, ByteArray>>
+        collector: suspend (Map<StreamType, ByteArray>) -> Unit
     ) {
-        framesetFlow.collect(collector)
+        framesetFlow.collectLatest(collector)
     }
 
     fun makeStreamPusher(streamType: StreamType): StreamPusher = StreamPusher {

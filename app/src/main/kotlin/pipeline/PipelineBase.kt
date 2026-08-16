@@ -7,6 +7,7 @@ import com.galaxia5987.app.publish.PublishEventListener
 import com.galaxia5987.app.publish.Publishable
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.collectLatest
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
@@ -23,7 +24,7 @@ abstract class PipelineBase(
 
     abstract fun end()
 
-    protected val publishable: Publishable =
+    protected var publishable: Publishable =
         object : Publishable {
             override fun copy(): Publishable = this
         }
@@ -36,7 +37,7 @@ abstract class PipelineBase(
         MutableSharedFlow<Publishable>(extraBufferCapacity = 2)
 
     private val publishListener = PublishEventListener {
-        publishFlow.collect {
+        publishFlow.collectLatest {
             publish(it)
         }
     }
@@ -56,8 +57,8 @@ abstract class PipelineBase(
                 while (isActive) {
                     camera.collectFrames {
                         periodic(it)
+                        publishFlow.emit(publishable.copy())
                     }
-                    publishFlow.emit(publishable.copy())
                 }
             } finally {
                 end()
