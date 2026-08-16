@@ -7,6 +7,8 @@ import com.galaxia5987.app.publish.PublishEventListener
 import com.galaxia5987.app.publish.Publishable
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 
 abstract class PipelineBase(
     protected val camera: CameraBase,
@@ -25,6 +27,8 @@ abstract class PipelineBase(
         object : Publishable {
             override fun copy(): Publishable = this
         }
+
+    protected val logger: Logger = LoggerFactory.getLogger(this::class.java)
 
     private var job: Job? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
