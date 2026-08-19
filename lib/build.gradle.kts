@@ -9,6 +9,7 @@ repositories {
 
 dependencies {
     api("org.bytedeco:javacpp:1.5.10")
+    api("org.bytedeco:javacv-platform:1.5.14")
     testImplementation(kotlin("test"))
 }
 
@@ -38,7 +39,8 @@ val javacppBuild = tasks.register<JavaExec>("javacppBuild") {
     args(
         "-d", file("build/classes/kotlin/main").absolutePath,
         "com.galaxia5987.lib.UsbCameraWrapper",
-        "com.galaxia5987.lib.ByteVector"
+        "com.galaxia5987.lib.ByteVector",
+        "com.galaxia5987.lib.YoloBindings"
     )
 }
 
