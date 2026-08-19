@@ -12,8 +12,9 @@ import org.bytedeco.javacpp.annotation.Index
 import org.bytedeco.javacpp.annotation.Name
 import org.bytedeco.javacpp.annotation.Namespace
 import org.bytedeco.javacpp.annotation.Platform
+import org.bytedeco.opencv.opencv_core.Mat
 
-@Platform(include = ["usb/UsbCamera.hpp"], link = ["aether-vision-lib"])
+@Platform(include = ["usb/UsbCamera.hpp"], link = ["aether-vision-lib", "opencv_core"])
 @Name("UsbCamera")
 @Namespace("aethervision")
 class UsbCameraWrapper : Pointer {
@@ -32,7 +33,7 @@ class UsbCameraWrapper : Pointer {
 
     @Cast("bool") external fun isOpened(): Boolean
 
-    @ByVal external fun readFrame(): ByteVector
+    @ByVal external fun readFrame(): Mat
 
     external fun getWidth(): Int
 
@@ -49,10 +50,7 @@ class UsbCameraWrapper : Pointer {
         @JvmStatic
         @ByVal
         external fun encodeToJpeg(
-            @ByRef rawData: ByteVector,
-            width: Int,
-            height: Int,
-            channels: Int,
+            @ByRef rawData: Mat,
             quality: Int = 95,
         ): ByteVector
     }
@@ -91,14 +89,6 @@ class ByteVector : Pointer {
     @Index external fun put(i: Long, value: Byte): ByteVector
 
     @Cast("signed char*") external fun data(): BytePointer
-
-    fun get(): ByteArray {
-        val array = ByteArray(size().toInt())
-        for (i in array.indices) {
-            array[i] = get(i.toLong())
-        }
-        return array
-    }
 
     fun toByteArray(): ByteArray {
         val size = this.size().toInt()

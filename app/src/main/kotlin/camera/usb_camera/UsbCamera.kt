@@ -5,6 +5,7 @@ import com.galaxia5987.app.camera.StreamType
 import com.galaxia5987.lib.ByteVector
 import com.galaxia5987.lib.UsbCameraWrapper
 import config.structs.InputConfig
+import org.bytedeco.opencv.opencv_core.Mat
 
 private const val DEVICE_ID = 0
 
@@ -20,7 +21,7 @@ class UsbCamera : CameraBase(listOf(StreamType.COLOR)) {
     var channels: Int = 0
         private set
 
-    private var latestByteVector: ByteVector? = null
+    private var latestByteVector: Mat? = null
 
     override fun startCamera(config: InputConfig) {
         camera = UsbCameraWrapper(DEVICE_ID)
@@ -30,7 +31,7 @@ class UsbCamera : CameraBase(listOf(StreamType.COLOR)) {
         camera?.close()
     }
 
-    private fun pollLatestFrame(): ByteVector? {
+    private fun pollLatestFrame(): Mat? {
         if (camera == null) {
             throw IllegalStateException(
                 "UsbCamera native object cannot be null!"
@@ -47,10 +48,10 @@ class UsbCamera : CameraBase(listOf(StreamType.COLOR)) {
         return camera!!.readFrame()
     }
 
-    override fun pollFrame(streamType: StreamType): ByteArray? {
+    override fun pollFrame(streamType: StreamType): Mat? {
         require(streamType == StreamType.COLOR)
         latestByteVector = pollLatestFrame()
-        return latestByteVector?.toByteArray()
+        return latestByteVector
     }
 
     override fun pollJpegFrame(streamType: StreamType): ByteArray? {
@@ -58,9 +59,6 @@ class UsbCamera : CameraBase(listOf(StreamType.COLOR)) {
         if (latestByteVector == null) return null
         return UsbCameraWrapper.encodeToJpeg(
                 latestByteVector!!,
-                width,
-                height,
-                channels,
             )
             .toByteArray()
     }

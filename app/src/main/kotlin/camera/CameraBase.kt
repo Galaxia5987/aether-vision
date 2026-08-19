@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import org.bytedeco.opencv.opencv_core.Mat
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
@@ -25,7 +26,7 @@ abstract class CameraBase(val streamTypes: List<StreamType>) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var job: Job? = null
 
-    private val framesetFlow = MutableSharedFlow<Map<StreamType, ByteArray>>()
+    private val framesetFlow = MutableSharedFlow<Map<StreamType, Mat>>()
 
     protected val logger: Logger = LoggerFactory.getLogger(this::class.java)
 
@@ -35,7 +36,7 @@ abstract class CameraBase(val streamTypes: List<StreamType>) {
 
     protected abstract fun stopCamera()
 
-    protected abstract fun pollFrame(streamType: StreamType): ByteArray?
+    protected abstract fun pollFrame(streamType: StreamType): Mat?
 
     protected abstract fun pollJpegFrame(streamType: StreamType): ByteArray?
 
@@ -63,11 +64,8 @@ abstract class CameraBase(val streamTypes: List<StreamType>) {
 
         job = scope.launch {
             val frameset =
-                LinkedHashMap<StreamType, ByteArray>(streamTypes.size)
+                LinkedHashMap<StreamType, Mat>(streamTypes.size)
 
-            streamTypes.forEach { // populate the map first
-                frameset[it] = ByteArray(0)
-            }
 
             startEnumeration()
 
@@ -94,7 +92,7 @@ abstract class CameraBase(val streamTypes: List<StreamType>) {
     }
 
     suspend fun collectFrames(
-        collector: suspend (Map<StreamType, ByteArray>) -> Unit
+        collector: suspend (Map<StreamType, Mat>) -> Unit
     ) {
         framesetFlow.collectLatest(collector)
     }

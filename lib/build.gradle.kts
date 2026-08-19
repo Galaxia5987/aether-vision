@@ -35,8 +35,8 @@ val javacppBuild = tasks.register<JavaExec>("javacppBuild") {
 
     systemProperty("org.bytedeco.javacpp.platform.includepath", file("../native/src").absolutePath)
     systemProperty("org.bytedeco.javacpp.platform.linkpath", file("../native/build").absolutePath)
-
     args(
+        "-Xcompiler", "-I/usr/include/opencv4",
         "-d", file("build/classes/kotlin/main").absolutePath,
         "com.galaxia5987.lib.UsbCameraWrapper",
         "com.galaxia5987.lib.ByteVector",

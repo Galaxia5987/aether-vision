@@ -36,19 +36,14 @@ namespace aethervision {
         return pImpl->cap.isOpened();
     }
 
-    std::vector<uint8_t> UsbCamera::readFrame() {
+    cv::Mat UsbCamera::readFrame() {
         cv::Mat frame;
 
         if (!pImpl->cap.isOpened() || !pImpl->cap.read(frame)) {
-            return std::vector<uint8_t>();
+            return cv::Mat();
         }
 
-        currentWidth = frame.cols;
-        currentHeight = frame.rows;
-        currentChannels = frame.channels();
-
-        size_t sizeInBytes = frame.total() * frame.elemSize();
-        return std::vector<uint8_t>(frame.data, frame.data + sizeInBytes);
+        return frame;
     }
 
     int UsbCamera::getWidth() const {
@@ -63,18 +58,15 @@ namespace aethervision {
         return currentChannels;
     }
 
-    std::vector<uint8_t> UsbCamera::encodeToJpeg(const std::vector<uint8_t>& rawData, int width, int height, int channels, int quality) {
-        if (rawData.empty() || width <= 0 || height <= 0 || channels <= 0) {
-            return std::vector<uint8_t>();
+    std::vector<uint8_t> UsbCamera::encodeToJpeg(const cv::Mat& rawData, int quality) {
+        if (rawData.empty()) {
+            return cv::Mat();
         }
-
-        int type = CV_MAKETYPE(CV_8U, channels);
-        cv::Mat mat(height, width, type, const_cast<uint8_t*>(rawData.data()));
 
         std::vector<uint8_t> jpegBuffer;
         std::vector<int> params = {cv::IMWRITE_JPEG_QUALITY, quality};
 
-        cv::imencode(".jpg", mat, jpegBuffer, params);
+        cv::imencode(".jpg", rawData, jpegBuffer, params);
         return jpegBuffer;
     }
 } // aethervision

@@ -10,6 +10,7 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <opencv2/core/mat.hpp>
 
 namespace aethervision
 {
@@ -28,13 +29,13 @@ namespace aethervision
         void close();
         bool isOpened() const;
 
-        std::vector<uint8_t> readFrame();
+        cv::Mat readFrame();
 
         int getWidth() const;
         int getHeight() const;
         int getChannels() const;
 
-        static std::vector<uint8_t> encodeToJpeg(const std::vector<uint8_t>& rawData, int width, int height, int channels, int quality = 95);
+        static std::vector<uint8_t> encodeToJpeg(const cv::Mat& rawData, int quality = 95);
 
     private:
         struct Impl;

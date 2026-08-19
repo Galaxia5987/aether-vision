@@ -4,6 +4,7 @@ import com.galaxia5987.app.camera.CameraBase
 import com.galaxia5987.app.camera.StreamType
 import com.galaxia5987.app.publish.Publishable
 import com.galaxia5987.lib.YoloBindings
+import org.bytedeco.opencv.opencv_core.Mat
 
 data class SamplePublishable(val someValue: Int) : Publishable {
     override fun copy(): Publishable = this.copy(someValue = someValue)
@@ -22,7 +23,7 @@ class EmptyPipeline(camera: CameraBase) :
         publishable = SamplePublishable(2)
     }
 
-    override fun periodic(frameset: Map<StreamType, ByteArray>) {
+    override fun periodic(frameset: Map<StreamType, Mat>) {
         logger.info("Periodic")
 
 

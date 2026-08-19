@@ -8,6 +8,7 @@ import com.galaxia5987.app.publish.Publishable
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.collectLatest
+import org.bytedeco.opencv.opencv_core.Mat
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
@@ -18,7 +19,7 @@ abstract class PipelineBase(
 
     abstract fun init()
 
-    abstract fun periodic(frameset: Map<StreamType, ByteArray>)
+    abstract fun periodic(frameset: Map<StreamType, Mat>)
 
     abstract fun publish(toPublish: Publishable)
 
