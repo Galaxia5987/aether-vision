@@ -13,7 +13,8 @@ namespace aethervision{
     class YoloDetector::Impl {
     public:
         Impl(const std::string& modelPath, bool useCUDA) {
-            env_ = Ort::Env(ORT_LOGGING_LEVEL_WARNING, "YOLO_Inference");
+            printf("Hello World!\n");
+            env_ = Ort::Env(ORT_LOGGING_LEVEL_INFO, "YOLO_Inference");
             sessionOptions_ = Ort::SessionOptions();
 
             if (useCUDA) {
@@ -170,12 +171,8 @@ namespace aethervision{
     YoloDetector::YoloDetector(YoloDetector&&) noexcept = default;
     YoloDetector& YoloDetector::operator=(YoloDetector&&) noexcept = default;
 
-    std::vector<Detection> YoloDetector::detect(void* imagePtr, float confThreshold, float iouThreshold) {
-        if (!imagePtr) {
-            return {};
-        }
+    std::vector<Detection> YoloDetector::detect(const cv::Mat& image, float confThreshold, float iouThreshold) {
 
-        cv::Mat* mat = static_cast<cv::Mat*>(imagePtr);
-        return pImpl->detect(*mat, confThreshold, iouThreshold);
+        return pImpl->detect(image, confThreshold, iouThreshold);
     }
 } // aethervision

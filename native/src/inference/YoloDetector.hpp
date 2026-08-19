@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <opencv2/core/mat.hpp>
 
 
 namespace aethervision{
@@ -35,8 +36,7 @@ namespace aethervision{
         YoloDetector(YoloDetector&&) noexcept;
         YoloDetector& operator=(YoloDetector&&) noexcept;
 
-        // imagePtr expects a pointer to a cv::Mat
-        std::vector<Detection> detect(void* imagePtr, float confThreshold = 0.25f, float iouThreshold = 0.45f);
+        std::vector<Detection> detect(const cv::Mat& imagePtr, float confThreshold = 0.25f, float iouThreshold = 0.45f);
 
     private:
         class Impl;

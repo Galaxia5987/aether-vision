@@ -40,7 +40,10 @@ val javacppBuild = tasks.register<JavaExec>("javacppBuild") {
         "-d", file("build/classes/kotlin/main").absolutePath,
         "com.galaxia5987.lib.UsbCameraWrapper",
         "com.galaxia5987.lib.ByteVector",
-        "com.galaxia5987.lib.YoloBindings"
+        "com.galaxia5987.lib.NativeBoundingBox",
+        "com.galaxia5987.lib.NativeDetection",
+        "com.galaxia5987.lib.DetectionVector",
+        "com.galaxia5987.lib.YoloDetector",
     )
 }
 
