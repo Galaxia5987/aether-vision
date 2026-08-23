@@ -1,8 +1,6 @@
 <component name="ArtifactManager">
   <artifact type="jar" name="utils-jvm">
     <output-path>$PROJECT_DIR$/utils/build/libs</output-path>
-    <root id="archive" name="utils-jvm.jar">
-      <element id="module-output" name="aether-vision.utils.jvmMain" />
-    </root>
+    <root id="archive" name="utils-jvm.jar" />
   </artifact>
 </component>

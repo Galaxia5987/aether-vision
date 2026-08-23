@@ -9,5 +9,15 @@ export default defineConfig({
   },
   ssr: {
     noExternal: ['utils'],
+  },
+  build: {
+    // Standard Rollup externalization
+    rollupOptions: {
+      external: ['ws'],
+    },
+    // Rolldown externalization
+    rolldownOptions: {
+      external: ['ws'],
+    }
   }
 })
