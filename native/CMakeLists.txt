@@ -2,9 +2,9 @@ cmake_minimum_required(VERSION 3.22)
 project(aether-vision-lib)
 
 # TODO: Right now this build file only support x86 linux, need to make it support ARM, at least.
-
+#add_compile_definitions(_GLIBCXX_USE_CXX11_ABI=0)
 # Force CMake to use the Ubuntu system OpenCV rather than a manual build in /usr/local
-set(OpenCV_DIR "/usr/lib/x86_64-linux-gnu/cmake/opencv4")
+#set(OpenCV_DIR "/usr/lib/x86_64-linux-gnu/cmake/opencv4")
 
 find_package(OpenCV REQUIRED)
 
@@ -36,3 +36,12 @@ target_include_directories(aether-vision-lib PRIVATE
 
 target_link_libraries(aether-vision-lib PRIVATE ${OpenCV_LIBS}
         ${onnxruntime_SOURCE_DIR}/lib/libonnxruntime.so)
+
+add_executable(main src/main.cpp)
+target_include_directories(main PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/src"
+        ${OpenCV_INCLUDE_DIRS}
+        ${onnxruntime_SOURCE_DIR}/include
+        )
+
+target_link_libraries(main aether-vision-lib ${OpenCV_LIBS} ${onnxruntime_SOURCE_DIR}/lib/libonnxruntime.so)

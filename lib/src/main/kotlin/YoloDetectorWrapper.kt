@@ -9,7 +9,7 @@ data class BoundingBox(val x: Int, val y: Int, val width: Int, val height: Int)
 
 @Platform(
     include = ["inference/YoloDetector.hpp"],
-    link = ["aether-vision-lib", "opencv_core"]
+    link = ["onnxruntime","aether-vision-lib", "opencv_core"]
 )
 @Name("BoundingBox")
 @Namespace("aethervision")
@@ -49,7 +49,7 @@ data class Detection(val box: BoundingBox, val confidence: Float, val classId: I
 
 @Platform(
     include = ["inference/YoloDetector.hpp"],
-    link = ["aether-vision-lib", "opencv_core"]
+    link = ["onnxruntime","aether-vision-lib", "opencv_core"]
 )
 @Name("Detection")
 @Namespace("aethervision")
@@ -83,7 +83,7 @@ class NativeDetection : Pointer {
 
 @Platform(
     include = ["inference/YoloDetector.hpp"],
-    link = ["aether-vision-lib", "opencv_core"]
+    link = ["onnxruntime","aether-vision-lib", "opencv_core"]
 )
 @Name("std::vector<aethervision::Detection>")
 class DetectionVector : Pointer {
@@ -121,7 +121,7 @@ class DetectionVector : Pointer {
 
 @Platform(
     include = ["inference/YoloDetector.hpp"],
-    link = ["aether-vision-lib", "opencv_core"]
+    link = ["onnxruntime","aether-vision-lib", "opencv_core"]
 )
 @Name("YoloDetector")
 @Namespace("aethervision")
@@ -139,7 +139,7 @@ class YoloDetector : Pointer {
     constructor(p: Pointer) : super(p)
 
     protected external fun allocate(
-        @Const @ByRef @StdString modelPath: String,
+        modelPath: String,
         useCUDA: Boolean
     )
 

@@ -19,7 +19,7 @@ class EmptyPipeline(camera: CameraBase) :
     override fun init() {
         logger.info("Init")
 
-        model = YoloDetector("model.onnx", false)
+        model = YoloDetector("/home/adarw/Projects/aether-vision/app/model.onnx", false)
     }
 
     override fun periodic(frameset: Map<StreamType, Mat>) {

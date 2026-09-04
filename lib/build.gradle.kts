@@ -34,7 +34,7 @@ val javacppBuild = tasks.register<JavaExec>("javacppBuild") {
     classpath = sourceSets["main"].runtimeClasspath
 
     systemProperty("org.bytedeco.javacpp.platform.includepath", file("../native/src").absolutePath)
-    systemProperty("org.bytedeco.javacpp.platform.linkpath", file("../native/build").absolutePath)
+    systemProperty("org.bytedeco.javacpp.platform.linkpath", "${file("../native/build").absolutePath}:${file("../native/build/_deps/onnxruntime-src/lib").absolutePath}")
     args(
         "-Xcompiler", "-I/usr/include/opencv4",
         "-d", file("build/classes/kotlin/main").absolutePath,

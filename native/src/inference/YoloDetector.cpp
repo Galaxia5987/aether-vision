@@ -7,27 +7,30 @@
 #include <opencv2/opencv.hpp>
 #include <cstring>
 #include <algorithm>
+#include <fstream>
 
 namespace aethervision{
 
+    static Ort::Env& getGlobalOrtEnv() {
+        // Created once per JVM process
+        static Ort::Env env(ORT_LOGGING_LEVEL_WARNING, "YOLO_Inference");
+        return env;
+    }
+
     class YoloDetector::Impl {
     public:
-        Impl(const std::string& modelPath, bool useCUDA) {
-            printf("Hello World!\n");
-            env_ = Ort::Env(ORT_LOGGING_LEVEL_INFO, "YOLO_Inference");
-            sessionOptions_ = Ort::SessionOptions();
+        Impl(const char* modelPath, bool useCUDA) : sessionOptions_() {
 
-            if (useCUDA) {
-                OrtCUDAProviderOptions cudaOptions;
-                sessionOptions_.AppendExecutionProvider_CUDA(cudaOptions);
-            }
+            // Limit threads so ONNX doesn't fight the JVM's garbage collector/thread pool
+            sessionOptions_.SetIntraOpNumThreads(1);
+            sessionOptions_.SetInterOpNumThreads(1);
 
-            session_ = std::make_unique<Ort::Session>(env_, modelPath.c_str(), sessionOptions_);
+            // Use the safe global environment
+            session_ = std::make_unique<Ort::Session>(getGlobalOrtEnv(), modelPath, sessionOptions_);
 
             Ort::TypeInfo inputTypeInfo = session_->GetInputTypeInfo(0);
             auto inputTensorInfo = inputTypeInfo.GetTensorTypeAndShapeInfo();
             inputDims_ = inputTensorInfo.GetShape();
-
             if (inputDims_[0] == -1) inputDims_[0] = 1;
 
             Ort::TypeInfo outputTypeInfo = session_->GetOutputTypeInfo(0);
@@ -35,15 +38,11 @@ namespace aethervision{
             outputDims_ = outputTensorInfo.GetShape();
 
             Ort::AllocatorWithDefaultOptions allocator;
-
-            // Extract string directly into a std::string and store the C-string pointer
             auto allocatedInputName = session_->GetInputNameAllocated(0, allocator);
             inputNamesStr_.push_back(allocatedInputName.get());
-            inputNamesCStr_.push_back(inputNamesStr_.back().c_str());
 
             auto allocatedOutputName = session_->GetOutputNameAllocated(0, allocator);
             outputNamesStr_.push_back(allocatedOutputName.get());
-            outputNamesCStr_.push_back(outputNamesStr_.back().c_str());
         }
 
         std::vector<Detection> detect(const cv::Mat& image, float confThreshold, float iouThreshold) {
@@ -124,8 +123,8 @@ namespace aethervision{
         }
 
     private:
-        Ort::Env env_{nullptr};
-        Ort::SessionOptions sessionOptions_{nullptr};
+        Ort::Env env_;
+        Ort::SessionOptions sessionOptions_;
         std::unique_ptr<Ort::Session> session_;
 
         // REPLACE AllocatedStringPtr with standard strings
@@ -163,7 +162,7 @@ namespace aethervision{
         }
     };
 
-    YoloDetector::YoloDetector(const std::string& modelPath, bool useCUDA)
+    YoloDetector::YoloDetector(const char* modelPath, bool useCUDA)
         : pImpl(std::make_unique<Impl>(modelPath, useCUDA)) {}
 
     YoloDetector::~YoloDetector() = default;

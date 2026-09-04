@@ -27,7 +27,7 @@ namespace aethervision{
 
     class YoloDetector {
     public:
-        explicit YoloDetector(const std::string& modelPath, bool useCUDA = false);
+        explicit YoloDetector(const char* modelPath, bool useCUDA = false);
 
         ~YoloDetector();
 
