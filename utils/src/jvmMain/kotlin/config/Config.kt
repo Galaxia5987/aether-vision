@@ -20,6 +20,16 @@ object Config {
         encodeDefaults = true
     }
 
+    private val listeners = mutableListOf<(AppConfig) -> Unit>()
+
+    fun addListener(listener: (AppConfig) -> Unit) {
+        listeners.add(listener)
+    }
+
+    fun removeListener(listener: (AppConfig) -> Unit) {
+        listeners.remove(listener)
+    }
+
     fun load(forceReload: Boolean = false): AppConfig {
         if (!forceReload && cachedConfig != null) {
             return cachedConfig!!
@@ -57,5 +67,13 @@ object Config {
         logger.info("Successfully saved config!")
 
         cachedConfig = config
+
+        listeners.toList().forEach { listener ->
+            try {
+                listener(config)
+            } catch (e: Exception) {
+                logger.error("Error in config update listener: ${e.message}", e)
+            }
+        }
     }
 }

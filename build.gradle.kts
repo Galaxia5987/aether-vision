@@ -20,6 +20,7 @@ subprojects {
         }
         java {
             target("**/*.java")
+            targetExclude("**/build/**")
             googleJavaFormat().aosp()
             trimTrailingWhitespace()
             endWithNewline()

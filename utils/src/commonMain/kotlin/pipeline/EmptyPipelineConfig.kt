@@ -10,7 +10,9 @@ import kotlinx.serialization.Serializable
 @JsExport
 @SerialName("EmptyPipeline")
 @Serializable
-class EmptyPipelineConfig : PipelineConfig() {
+data class EmptyPipelineConfig(
+    override var executablePath: String = "pipeline/build/pipeline"
+) : PipelineConfig() {
     companion object : DefaultValue<EmptyPipelineConfig> {
         override fun defaultInstance(): EmptyPipelineConfig =
             EmptyPipelineConfig()

@@ -71,6 +71,7 @@
     </Folder>
     <Folder title="Pipeline">
         <List bind:value={pipelineSelection} label="Type" options={pipelineOptions} />
+        <Text bind:value={config.pipeline.executablePath} label="Executable Path" />
     </Folder>
     <Folder title="Network Table">
         <Text bind:value={config.networkTable.server} label="Server Address" />

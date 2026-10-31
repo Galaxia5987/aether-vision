@@ -13,6 +13,8 @@ val pipelineOptions =
 @JsExport
 @Serializable
 sealed class PipelineConfig {
+    abstract var executablePath: String
+
     companion object {
         fun getOptions(): Map<String, PipelineConfig> = pipelineOptions
     }
