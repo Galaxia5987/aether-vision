@@ -1,0 +1,162 @@
+syntax = "proto3";
+
+package aether.vision.proto;
+
+enum CommandType {
+    CMD_UNKNOWN = 0;
+    CMD_START = 1;
+    CMD_STOP = 2;
+    CMD_PAUSE = 3;
+    CMD_RESUME = 4;
+    CMD_CONFIGURE_CAMERA = 5;
+    CMD_CONFIGURE_PROCESSING = 6;
+    CMD_GET_STATUS = 7;
+    CMD_GET_CONFIG = 8;
+    CMD_RESET_CAMERA = 9;
+    CMD_SHUTDOWN = 10;
+}
+
+enum CameraState {
+    CAM_DISCONNECTED = 0;
+    CAM_CONNECTING = 1;
+    CAM_STREAMING = 2;
+    CAM_ERROR = 3;
+}
+
+enum PipelineState {
+    PIPE_STOPPED = 0;
+    PIPE_STARTING = 1;
+    PIPE_RUNNING = 2;
+    PIPE_PAUSED = 3;
+    PIPE_STOPPING = 4;
+}
+
+message Vector3 {
+    float x = 1;
+    float y = 2;
+    float z = 3;
+}
+
+message BoundingBox2D {
+    float x = 1;
+    float y = 2;
+    float width = 3;
+    float height = 4;
+}
+
+message Target3D {
+    string label = 1;
+    float confidence = 2;
+    float pixel_x = 3;
+    float pixel_y = 4;
+    BoundingBox2D bbox = 5;
+    Vector3 position_3d = 6;
+    float distance_m = 7;
+}
+
+message CameraConfig {
+    string serial_number = 1;
+    int32 width = 2;
+    int32 height = 3;
+    int32 fps = 4;
+    bool enable_color = 5;
+    bool enable_depth = 6;
+    bool enable_infrared = 7;
+    bool align_depth_to_color = 8;
+    bool auto_exposure = 9;
+    int32 exposure = 10;
+    int32 gain = 11;
+    int32 laser_power = 12;
+    bool emitter_enabled = 13;
+}
+
+message ProcessingConfig {
+    float min_depth_m = 1;
+    float max_depth_m = 2;
+    bool enable_color_filter = 3;
+    int32 hsv_h_min = 4;
+    int32 hsv_h_max = 5;
+    int32 hsv_s_min = 6;
+    int32 hsv_s_max = 7;
+    int32 hsv_v_min = 8;
+    int32 hsv_v_max = 9;
+    int32 min_contour_area = 10;
+    bool enable_spatial_filter = 11;
+    bool enable_temporal_filter = 12;
+    bool enable_hole_filling = 13;
+}
+
+// STDIN command message
+message PipelineCommand {
+    string command_id = 1;
+    CommandType type = 2;
+    CameraConfig camera_config = 3;
+    ProcessingConfig processing_config = 4;
+}
+
+// Processing result payload
+message ProcessingResult {
+    uint64 sequence_id = 1;
+    double capture_timestamp_ms = 2;
+    double process_timestamp_ms = 3;
+    double processing_latency_ms = 4;
+    repeated Target3D targets = 5;
+    map<string, double> metrics = 6;
+}
+
+// Periodic heartbeat and performance telemetry
+message SystemTelemetry {
+    double capture_fps = 1;
+    double processing_fps = 2;
+    double publishing_fps = 3;
+    uint64 frames_captured = 4;
+    uint64 frames_processed = 5;
+    uint64 frames_dropped = 6;
+    CameraState camera_status = 7;
+    PipelineState pipeline_state = 8;
+    double uptime_seconds = 9;
+}
+
+message PipelineStatus {
+    PipelineState pipeline_state = 1;
+    CameraState camera_status = 2;
+    string camera_device = 3;
+    string camera_serial = 4;
+    uint32 frame_queue_size = 5;
+    uint32 result_queue_size = 6;
+    uint64 dropped_frames = 7;
+    double capture_fps = 8;
+    double processing_fps = 9;
+    double publishing_fps = 10;
+}
+
+message PipelineConfig {
+    CameraConfig camera_config = 1;
+    ProcessingConfig processing_config = 2;
+}
+
+message CommandAck {
+    string command_id = 1;
+    bool success = 2;
+    string message = 3;
+    oneof data {
+        PipelineStatus status_data = 4;
+        PipelineConfig config_data = 5;
+    }
+}
+
+message ErrorMessage {
+    string error_message = 1;
+    double timestamp_ms = 2;
+}
+
+// Top-level STDOUT envelope
+message PipelineMessage {
+    oneof payload {
+        ProcessingResult result = 1;
+        SystemTelemetry telemetry = 2;
+        CommandAck ack = 3;
+        PipelineStatus status = 4;
+        ErrorMessage error = 5;
+    }
+}
