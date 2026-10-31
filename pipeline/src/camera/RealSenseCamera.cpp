@@ -5,11 +5,11 @@
 namespace aether::vision {
 
 RealSenseCamera::RealSenseCamera()
-    : state_(CameraState::DISCONNECTED),
+    : state_(proto::CAM_DISCONNECTED),
       is_streaming_(false) {}
 
 RealSenseCamera::~RealSenseCamera() {
-    RealSenseCamera::stop();
+    stop();
 }
 
 bool RealSenseCamera::isDeviceAvailable() const {
@@ -19,13 +19,13 @@ bool RealSenseCamera::isDeviceAvailable() const {
             return false;
         }
 
-        if (config_.serial_number.empty()) {
+        if (config_.serial_number().empty()) {
             return true;
         }
 
         for (const auto& dev : dev_list) {
             if (dev.supports(RS2_CAMERA_INFO_SERIAL_NUMBER)) {
-                if (config_.serial_number == dev.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER)) {
+                if (config_.serial_number() == dev.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER)) {
                     return true;
                 }
             }
@@ -40,21 +40,21 @@ bool RealSenseCamera::isDeviceAvailable() const {
 bool RealSenseCamera::initialize(const CameraConfig& config) {
     std::lock_guard<std::mutex> lock(mutex_);
     config_ = config;
-    state_ = CameraState::CONNECTING;
+    state_ = proto::CAM_CONNECTING;
 
     try {
         auto dev_list = ctx_.query_devices();
         if (dev_list.size() == 0) {
             LOG_WARN("No RealSense devices detected during initialization");
-            state_ = CameraState::DISCONNECTED;
+            state_ = proto::CAM_DISCONNECTED;
             return false;
         }
 
         bool found = false;
-        if (!config_.serial_number.empty()) {
+        if (!config_.serial_number().empty()) {
             for (const auto& dev : dev_list) {
                 if (dev.supports(RS2_CAMERA_INFO_SERIAL_NUMBER) &&
-                    config_.serial_number == dev.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER)) {
+                    config_.serial_number() == dev.get_info(RS2_CAMERA_INFO_SERIAL_NUMBER)) {
                     device_ = dev;
                     found = true;
                     break;
@@ -66,8 +66,8 @@ bool RealSenseCamera::initialize(const CameraConfig& config) {
         }
 
         if (!found) {
-            LOG_ERROR("Specified RealSense device serial " << config_.serial_number << " not found");
-            state_ = CameraState::DISCONNECTED;
+            LOG_ERROR("Specified RealSense device serial " << config_.serial_number() << " not found");
+            state_ = proto::CAM_DISCONNECTED;
             return false;
         }
 
@@ -89,14 +89,21 @@ bool RealSenseCamera::initialize(const CameraConfig& config) {
             cfg_.enable_device(serial_number_);
         }
 
-        if (config_.enable_color) {
-            cfg_.enable_stream(RS2_STREAM_COLOR, config_.width, config_.height, RS2_FORMAT_BGR8, config_.fps);
+        int w = config_.width() > 0 ? config_.width() : 640;
+        int h = config_.height() > 0 ? config_.height() : 480;
+        int fps = config_.fps() > 0 ? config_.fps() : 30;
+
+        if (config_.enable_color()) {
+            cfg_.enable_stream(RS2_STREAM_COLOR, w, h, RS2_FORMAT_BGR8, fps);
         }
-        if (config_.enable_depth) {
-            cfg_.enable_stream(RS2_STREAM_DEPTH, config_.width, config_.height, RS2_FORMAT_Z16, config_.fps);
+        if (config_.enable_depth()) {
+            cfg_.enable_stream(RS2_STREAM_DEPTH, w, h, RS2_FORMAT_Z16, fps);
+        }
+        if (config_.enable_infrared()) {
+            cfg_.enable_stream(RS2_STREAM_INFRARED, 1, w, h, RS2_FORMAT_Y8, fps);
         }
 
-        if (config_.align_depth_to_color) {
+        if (config_.align_depth_to_color()) {
             align_to_color_ = std::make_unique<rs2::align>(RS2_STREAM_COLOR);
         } else {
             align_to_color_.reset();
@@ -105,11 +112,11 @@ bool RealSenseCamera::initialize(const CameraConfig& config) {
         return true;
     } catch (const rs2::error& e) {
         LOG_ERROR("RealSense error initializing: " << e.what());
-        state_ = CameraState::ERROR_STATE;
+        state_ = proto::CAM_ERROR;
         return false;
     } catch (const std::exception& e) {
         LOG_ERROR("Exception initializing RealSense: " << e.what());
-        state_ = CameraState::ERROR_STATE;
+        state_ = proto::CAM_ERROR;
         return false;
     }
 }
@@ -124,7 +131,7 @@ bool RealSenseCamera::start() {
         LOG_INFO("Starting RealSense pipeline stream...");
         profile_ = pipe_.start(cfg_);
         is_streaming_ = true;
-        state_ = CameraState::STREAMING;
+        state_ = proto::CAM_STREAMING;
 
         querySensorsAndIntrinsics();
         applySettings(config_);
@@ -133,12 +140,12 @@ bool RealSenseCamera::start() {
         return true;
     } catch (const rs2::error& e) {
         LOG_ERROR("RealSense error starting stream: " << e.what());
-        state_ = CameraState::ERROR_STATE;
+        state_ = proto::CAM_ERROR;
         is_streaming_ = false;
         return false;
     } catch (const std::exception& e) {
         LOG_ERROR("Exception starting RealSense: " << e.what());
-        state_ = CameraState::ERROR_STATE;
+        state_ = proto::CAM_ERROR;
         is_streaming_ = false;
         return false;
     }
@@ -158,7 +165,7 @@ void RealSenseCamera::stop() {
     }
 
     is_streaming_ = false;
-    state_ = CameraState::DISCONNECTED;
+    state_ = proto::CAM_DISCONNECTED;
 }
 
 bool RealSenseCamera::isStreaming() const {
@@ -171,7 +178,6 @@ CameraState RealSenseCamera::getState() const {
 
 void RealSenseCamera::querySensorsAndIntrinsics() {
     try {
-        // Query depth scale
         auto dev = profile_.get_device();
         for (auto&& sensor : dev.query_sensors()) {
             if (sensor.is<rs2::depth_sensor>()) {
@@ -189,7 +195,7 @@ void RealSenseCamera::querySensorsAndIntrinsics() {
 
 void RealSenseCamera::updateIntrinsicsFromProfile() {
     try {
-        if (config_.enable_color) {
+        if (config_.enable_color()) {
             auto color_stream = profile_.get_stream(RS2_STREAM_COLOR).as<rs2::video_stream_profile>();
             rs2_intrinsics intr = color_stream.get_intrinsics();
             color_intrinsics_.width = intr.width;
@@ -204,7 +210,7 @@ void RealSenseCamera::updateIntrinsicsFromProfile() {
             color_intrinsics_.valid = true;
         }
 
-        if (config_.enable_depth) {
+        if (config_.enable_depth()) {
             auto depth_stream = profile_.get_stream(RS2_STREAM_DEPTH).as<rs2::video_stream_profile>();
             rs2_intrinsics intr = depth_stream.get_intrinsics();
             depth_intrinsics_.width = intr.width;
@@ -262,7 +268,6 @@ bool RealSenseCamera::capture(FrameBundle& out_bundle, std::chrono::milliseconds
             int dh = depth_f.get_height();
             out_bundle.depth_frame = cv::Mat(cv::Size(dw, dh), CV_16UC1, const_cast<void*>(depth_f.get_data()), cv::Mat::AUTO_STEP).clone();
             out_bundle.has_depth = true;
-            // If aligned to color, depth intrinsics match color intrinsics
             out_bundle.depth_intrinsics = align_to_color_ ? color_intrinsics_ : depth_intrinsics_;
         } else {
             out_bundle.has_depth = false;
@@ -271,11 +276,11 @@ bool RealSenseCamera::capture(FrameBundle& out_bundle, std::chrono::milliseconds
         return true;
     } catch (const rs2::error& e) {
         LOG_ERROR("RealSense error during frame capture: " << e.what());
-        state_ = CameraState::ERROR_STATE;
+        state_ = proto::CAM_ERROR;
         return false;
     } catch (const std::exception& e) {
         LOG_ERROR("Exception during frame capture: " << e.what());
-        state_ = CameraState::ERROR_STATE;
+        state_ = proto::CAM_ERROR;
         return false;
     }
 }
@@ -295,30 +300,30 @@ bool RealSenseCamera::applySettings(const CameraConfig& config) {
                 auto depth_sens = sensor.as<rs2::depth_sensor>();
 
                 if (depth_sens.supports(RS2_OPTION_EMITTER_ENABLED)) {
-                    depth_sens.set_option(RS2_OPTION_EMITTER_ENABLED, config_.emitter_enabled ? 1.0f : 0.0f);
+                    depth_sens.set_option(RS2_OPTION_EMITTER_ENABLED, config_.emitter_enabled() ? 1.0f : 0.0f);
                 }
                 if (depth_sens.supports(RS2_OPTION_LASER_POWER)) {
-                    depth_sens.set_option(RS2_OPTION_LASER_POWER, static_cast<float>(config_.laser_power));
+                    depth_sens.set_option(RS2_OPTION_LASER_POWER, static_cast<float>(config_.laser_power()));
                 }
                 if (depth_sens.supports(RS2_OPTION_ENABLE_AUTO_EXPOSURE)) {
-                    depth_sens.set_option(RS2_OPTION_ENABLE_AUTO_EXPOSURE, config_.auto_exposure ? 1.0f : 0.0f);
+                    depth_sens.set_option(RS2_OPTION_ENABLE_AUTO_EXPOSURE, config_.auto_exposure() ? 1.0f : 0.0f);
                 }
-                if (!config_.auto_exposure && depth_sens.supports(RS2_OPTION_EXPOSURE)) {
-                    depth_sens.set_option(RS2_OPTION_EXPOSURE, static_cast<float>(config_.exposure));
+                if (!config_.auto_exposure() && depth_sens.supports(RS2_OPTION_EXPOSURE)) {
+                    depth_sens.set_option(RS2_OPTION_EXPOSURE, static_cast<float>(config_.exposure()));
                 }
-                if (!config_.auto_exposure && depth_sens.supports(RS2_OPTION_GAIN)) {
-                    depth_sens.set_option(RS2_OPTION_GAIN, static_cast<float>(config_.gain));
+                if (!config_.auto_exposure() && depth_sens.supports(RS2_OPTION_GAIN)) {
+                    depth_sens.set_option(RS2_OPTION_GAIN, static_cast<float>(config_.gain()));
                 }
             } else if (sensor.is<rs2::color_sensor>()) {
                 auto color_sens = sensor.as<rs2::color_sensor>();
                 if (color_sens.supports(RS2_OPTION_ENABLE_AUTO_EXPOSURE)) {
-                    color_sens.set_option(RS2_OPTION_ENABLE_AUTO_EXPOSURE, config_.auto_exposure ? 1.0f : 0.0f);
+                    color_sens.set_option(RS2_OPTION_ENABLE_AUTO_EXPOSURE, config_.auto_exposure() ? 1.0f : 0.0f);
                 }
-                if (!config_.auto_exposure && color_sens.supports(RS2_OPTION_EXPOSURE)) {
-                    color_sens.set_option(RS2_OPTION_EXPOSURE, static_cast<float>(config_.exposure));
+                if (!config_.auto_exposure() && color_sens.supports(RS2_OPTION_EXPOSURE)) {
+                    color_sens.set_option(RS2_OPTION_EXPOSURE, static_cast<float>(config_.exposure()));
                 }
-                if (!config_.auto_exposure && color_sens.supports(RS2_OPTION_GAIN)) {
-                    color_sens.set_option(RS2_OPTION_GAIN, static_cast<float>(config_.gain));
+                if (!config_.auto_exposure() && color_sens.supports(RS2_OPTION_GAIN)) {
+                    color_sens.set_option(RS2_OPTION_GAIN, static_cast<float>(config_.gain()));
                 }
             }
         }
