@@ -17,7 +17,6 @@ public:
     void configure(const ProcessingConfig& config) override;
     ProcessingConfig getConfig() const override;
 
-    // Extensibility: dynamically append custom processing stages
     void addStage(std::unique_ptr<IProcessingStage> stage);
     void clearStages();
 
