@@ -1,80 +1,141 @@
+<!-- Configuration editor generated from the backend's JSON schemas. -->
 <script lang="ts">
-    import { onMount } from 'svelte';
-    import { Pane, Folder, Text, Button, Slider, Checkbox, List } from 'svelte-tweakpane-ui';
-    import { config as configPkg } from 'utils';
-    import { client } from '../api/api';
-    import { getDropdownOptions, handleSelection } from './configHelpers';
+    import { onMount } from 'svelte'
+    import { Button, Folder, List, Pane } from 'svelte-tweakpane-ui'
+    import SchemaForm from './SchemaForm.svelte'
+    import { api } from '../api/api'
+    import type { JsonObject, SchemaBundle } from '../api/types'
+    import { cloneJson, isObject, labelFor, mergeDefaults, resolve, type Defs } from './schema'
 
-    let config = configPkg.structs.defaultInstance();
-    let inputSelection: string;
-    let pipelineSelection: string;
+    let schema = $state.raw<SchemaBundle | null>(null)
+    let config = $state<JsonObject | null>(null)
+    let pipelineName = $state('')
+    let pipelineSettings = $state<JsonObject>({})
+    let message = $state('')
+    let saving = $state(false)
 
-    const { options: inputOptions, defaults: inputDefaults } = getDropdownOptions(configPkg.structs.InputConfig.Companion);
-    const { options: pipelineOptions, defaults: pipelineDefaults } = getDropdownOptions(configPkg.structs.pipeline.PipelineConfig.Companion);
+    const appDefs: Defs = $derived(schema?.app.$defs ?? {})
+    const sections = $derived(
+        Object.entries(resolve(schema?.app ?? {}, appDefs).properties ?? {}).filter(([key]) => key !== 'pipeline'),
+    )
+    const pipelineInfo = $derived(schema?.pipelines[pipelineName])
 
-    onMount(async () => {
-        try {
-            config = await client.fetchConfig();
-        } catch (e) {
-            console.error(e);
-        }
-
-        if (config.input instanceof configPkg.structs.UsbCameraConfig) {
-            inputSelection = "UsbCamera";
-        } else if (config.input instanceof configPkg.structs.RealsenseCameraConfig) {
-            inputSelection = "RealsenseCamera";
-        }
-
-        if (config.pipeline instanceof configPkg.structs.pipeline.EmptyPipelineConfig) {
-            pipelineSelection = "EmptyPipeline";
-        }
-    });
-
-    let saveTitle = "Save";
-
-    async function save() {
-        await client.updateConfig(config);
-        saveTitle = "Saved!";
-        setTimeout(()=> {
-            saveTitle = "Save";
-        }, 2000);
+    function applyConfig(next: JsonObject): void {
+        config = next
+        const selection = isObject(next.pipeline) ? next.pipeline : {}
+        pipelineName = String(selection.name ?? '')
+        const info = schema?.pipelines[pipelineName]
+        const settings = isObject(selection.settings) ? selection.settings : {}
+        pipelineSettings = info ? (mergeDefaults(info.defaults, settings) as JsonObject) : settings
     }
 
-    $: handleSelection(inputSelection, inputDefaults, (selected) => { config.input = selected; });
-    $: handleSelection(pipelineSelection, pipelineDefaults, (selected) => { config.pipeline = selected; });
+    async function load(): Promise<void> {
+        try {
+            schema = await api.fetchSchema()
+            applyConfig(await api.fetchConfig())
+            message = ''
+        } catch (error) {
+            message = `Failed to load: ${String(error)}`
+        }
+    }
+
+    function selectPipeline(name: string): void {
+        if (name === pipelineName) return
+        pipelineName = name
+        const info = schema?.pipelines[name]
+        pipelineSettings = info ? cloneJson(info.defaults) : {}
+    }
+
+    async function save(): Promise<void> {
+        if (!config) return
+        saving = true
+        try {
+            const payload: JsonObject = {
+                ...plain(config),
+                pipeline: { name: pipelineName, settings: plain(pipelineSettings) },
+            }
+            applyConfig(await api.saveConfig(payload))
+            message = 'Saved'
+            setTimeout(() => (message = message === 'Saved' ? '' : message), 2000)
+        } catch (error) {
+            message = error instanceof Error ? error.message : String(error)
+        } finally {
+            saving = false
+        }
+    }
+
+    /** Plain (non-proxied) copy of reactive state, typed explicitly to avoid deep type expansion. */
+    function plain(value: JsonObject): JsonObject {
+        const copy: unknown = $state.snapshot(value as unknown)
+        return copy as JsonObject
+    }
+
+    function section(key: string): JsonObject {
+        const current = config?.[key]
+        return isObject(current) ? current : {}
+    }
+
+    onMount(load)
 </script>
 
-<Pane title="Configuration" localStoreId="config">
-    <Folder title="Input">
-        <List bind:value={inputSelection} label="Type" options={inputOptions} />
-        {#if config.input instanceof configPkg.structs.UsbCameraConfig}
-            <Folder title="Resolution">
-                <Slider bind:value={config.input.resolution.width} label="Width" />
-                <Slider bind:value={config.input.resolution.height} label="Height" />
+<div class="configurator">
+    {#if schema && config}
+        <Pane position="inline" title="Configuration">
+            <Folder title="Pipeline">
+                <List
+                    label="pipeline"
+                    options={Object.keys(schema.pipelines)}
+                    bind:value={() => pipelineName, selectPipeline}
+                />
+                {#if pipelineInfo}
+                    {#key pipelineName}
+                        <SchemaForm
+                            schema={pipelineInfo.schema}
+                            defs={pipelineInfo.schema.$defs ?? {}}
+                            value={pipelineSettings}
+                        />
+                    {/key}
+                {/if}
             </Folder>
-            <Folder title="Color Stream">
-                <Checkbox bind:value={config.input.colorStream.enabled} label="Enable" />
-            </Folder>
-        {:else if config.input instanceof configPkg.structs.RealsenseCameraConfig}
-            <Folder title="Resolution">
-                <Slider bind:value={config.input.resolution.width} label="Width" />
-                <Slider bind:value={config.input.resolution.height} label="Height" />
-            </Folder>
-            <Slider bind:value={config.input.fps} label="FPS"/>
-            <Folder title="Color Stream">
-                <Checkbox bind:value={config.input.colorStream.enabled} label="Enable" />
-            </Folder>
-            <Folder title="Depth Stream">
-                <Checkbox bind:value={config.input.depthStream.enabled} label="Enable" />
-            </Folder>
-        {/if}
-    </Folder>
-    <Folder title="Pipeline">
-        <List bind:value={pipelineSelection} label="Type" options={pipelineOptions} />
-    </Folder>
-    <Folder title="Network Table">
-        <Text bind:value={config.networkTable.server} label="Server Address" />
-        <Text bind:value={config.networkTable.table} label="Table Path" />
-    </Folder>
-    <Button on:click={save} title={saveTitle} />
-</Pane>
+            {#each sections as [key, prop] (key)}
+                <Folder title={labelFor(key, prop)} expanded={false}>
+                    <SchemaForm schema={prop} defs={appDefs} value={section(key)} />
+                </Folder>
+            {/each}
+            <Button title={saving ? 'Saving…' : 'Save'} disabled={saving} on:click={save} />
+            <Button title="Reload" on:click={load} />
+        </Pane>
+        <p class="hint">⟳ marks settings that restart the pipeline or process when changed.</p>
+    {:else}
+        <p class="hint">Loading configuration…</p>
+    {/if}
+    {#if message}
+        <pre class="message" class:ok={message === 'Saved'}>{message}</pre>
+    {/if}
+</div>
+
+<style>
+    .configurator {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+    .hint {
+        margin: 0;
+        font-size: 12px;
+        color: #777;
+    }
+    .message {
+        margin: 0;
+        padding: 6px 8px;
+        font-size: 12px;
+        white-space: pre-wrap;
+        color: #ff8080;
+        background: #2a1616;
+        border-radius: 4px;
+    }
+    .message.ok {
+        color: #8f8;
+        background: #142a16;
+    }
+</style>

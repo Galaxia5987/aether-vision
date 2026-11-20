@@ -1,33 +1,26 @@
 <script lang="ts">
-    import { Pane } from "paneforge";
-    import Configurator from "../configurations/Configurator.svelte";
-    import LogMonitor from "../log/LogMonitor.svelte";
+    import { Pane } from 'paneforge'
+    import Configurator from '../configurations/Configurator.svelte'
+    import StatusPanel from './StatusPanel.svelte'
 </script>
 
-<Pane defaultSize={50} minSize={20}>
-    <div class="empty-panel">
-        <div class="center-text">
-            <span>Aether Vision</span>
-        </div>
-        <Configurator/>
-        <LogMonitor/>
+<Pane defaultSize={30} minSize={20}>
+    <div class="side">
+        <StatusPanel />
+        <Configurator />
     </div>
 </Pane>
 
 <style>
-    .center-text {
-        display: inline-flex;
-        align-items: center;
-        user-select: none;
-        font-weight: bold;
-    }
-    .empty-panel {
+    .side {
         width: 100%;
         height: 100%;
+        overflow-y: auto;
+        box-sizing: border-box;
+        padding: 10px;
         background-color: #111;
-        color: #555;
         display: flex;
-        justify-content: center;
-        align-items: center;
+        flex-direction: column;
+        gap: 12px;
     }
 </style>
