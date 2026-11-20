@@ -1,0 +1,24 @@
+# systemd unit for Aether Vision. Rendered by scripts/install.sh --service
+# (@USER@ and @REPO_DIR@ are substituted).
+
+[Unit]
+Description=Aether Vision depth-camera vision system
+Documentation=file://@REPO_DIR@/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@USER@
+WorkingDirectory=@REPO_DIR@
+# The built-in supervisor handles restart requests from the dashboard and
+# worker crashes; systemd restarts the supervisor itself if it ever exits.
+ExecStart=@REPO_DIR@/.venv/bin/aether-vision run
+Restart=always
+RestartSec=2
+KillSignal=SIGTERM
+TimeoutStopSec=20
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
