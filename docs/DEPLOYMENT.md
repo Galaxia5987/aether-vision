@@ -7,13 +7,15 @@ On the coprocessor (Ubuntu 22.04+ on x86-64 or ARM64):
 ```bash
 git clone https://github.com/Galaxia5987/aether-vision.git
 cd aether-vision
-scripts/install.sh --udev --service
+scripts/install.sh --service
 ```
 
-- `--udev` installs Intel's udev rules so the camera can be used without root.
-  Unplug and replug the camera afterwards.
-- `--service` installs a systemd service that starts on boot, runs as your
-  user, and restarts if it ever exits.
+The installer sets up everything the machine is missing (see the
+[README](../README.md#install)), including Intel's udev rules so the camera
+works without root. Unplug and replug the camera afterwards.
+
+`--service` installs a systemd service that starts on boot, runs as your user,
+and restarts if it ever exits.
 
 Then open `http://<coprocessor>:5803`. Set your team number, camera mounting
 (`localization.extrinsics`), and model, then click **Save**.
@@ -59,8 +61,8 @@ delegate.
 1. **Install the Qualcomm runtime.** `libQnnTFLiteDelegate.so` and the QNN HTP
    libraries come with the Qualcomm AI Engine Direct SDK (QAIRT) or the
    Qualcomm Linux image. Note where the delegate library is.
-2. **Install Aether Vision** with `scripts/install.sh` (LiteRT is included by
-   default).
+2. **Install Aether Vision** with `scripts/install.sh`. LiteRT is included by
+   default, and on ARM64 the installer reports whether it found the QNN delegate.
 3. **Export a quantized TFLite model**, e.g. with Ultralytics:
    ```bash
    yolo export model=your_model.pt format=tflite int8=True imgsz=640
@@ -96,12 +98,14 @@ few seconds. Fix the path and click **Save** or **Restart pipeline**.
 
 | Symptom | What to check |
 |---|---|
-| Camera state stays `reconnecting` | `rs-enumerate-devices` (librealsense tools) or `lsusb` shows the camera; udev rules installed (`--udev`); use a USB 3 port and cable |
+| Camera state stays `reconnecting` | `rs-enumerate-devices` (librealsense tools) or `lsusb` shows the camera; udev rules installed (`ls /etc/udev/rules.d/99-realsense*`); use a USB 3 port and cable |
 | `No RealSense device connected` while plugged in | Replug after installing udev rules; another program may be using the camera |
 | Pipeline `error: missing streams: depth` | The camera has no depth (USB/mock without depth); use `passthrough` or enable depth |
 | Pipeline `build failed: Model file not found` | `detector.model_path` is relative to the install folder |
 | NetworkTables shows `waiting` | Check `team` / `server_address` and that the robot is reachable (`ping 10.TE.AM.2`) |
 | Positions are NaN | Not enough valid depth in the box: the object is too close (< ~0.2 m), too far, or reflective/transparent. Try lowering `clustering.min_points` or enabling `filters.hole_filling` |
 | Positions are offset or rotated | Re-measure `localization.extrinsics`; `pitch_deg` is positive when tilted **down** |
-| Dashboard says "Frontend not built" | Install Node.js 20.19+ and re-run `scripts/install.sh` |
+| Dashboard says "Frontend not built" | Re-run `scripts/install.sh` (it installs Node.js if needed); it was installed with `--no-frontend` or the build failed |
+| Installer can't reach the internet | It needs github.com, nodejs.org, pypi.org and your distro's package mirror. Behind a proxy, set `HTTPS_PROXY` |
+| `aether-vision: command not found` / `uv: command not found` | Open a new shell so `~/.local/bin` is on `PATH`, or use `.venv/bin/aether-vision` |
 | Low FPS | Check `stages/*/latency_ms` telemetry; use the NPU, a smaller model, `max_points`, or a larger `sample_stride` |

@@ -26,10 +26,12 @@ RealSense D435 ──► YOLO on color ──► depth points in each box ──
 
 | | |
 |---|---|
-| OS | Linux (Ubuntu 22.04 or newer, x86-64 or ARM64). macOS works for development. |
-| Python | Installed automatically (3.12) by [uv](https://docs.astral.sh/uv/) |
-| Node.js | 20.19+ or 22.12+, only to build the dashboard |
+| OS | Linux (Ubuntu 22.04 or newer / glibc 2.35+, x86-64 or ARM64). macOS works for development. |
 | Camera | Intel RealSense D435 (or any D4xx). Optional for development. |
+| Internet | Needed during install |
+
+Nothing else needs to be installed first. The installer sets up Python,
+Node.js and everything else itself.
 
 ## Install
 
@@ -39,18 +41,28 @@ cd aether-vision
 scripts/install.sh
 ```
 
-The script installs uv if needed, creates the Python environment in `.venv/`,
-and builds the dashboard. Useful options:
+The installer checks each item and installs only what's missing:
+
+1. **System packages** with apt or dnf: `curl`, `tar`, `xz`, `libusb`, `udev`
+2. **[uv](https://docs.astral.sh/uv/)** into `~/.local/bin`, checksum-verified
+3. **Python 3.12** (managed by uv) and the exact package versions from `uv.lock`, in `.venv/`
+4. **Node.js 22**, a private copy in `.tools/node`, only if the system Node.js is
+   missing or too old (checksum-verified)
+5. **The dashboard**, built into `frontend/dist`
+6. **RealSense udev rules**, so the camera works without root
+
+Steps 1 and 6 change the system and use `sudo` (you may be asked for your
+password). Running it again is safe and takes a few seconds.
 
 | Option | What it does |
 |---|---|
-| `--udev` | Lets the RealSense camera work without root (installs udev rules, asks for sudo) |
-| `--service` | Starts Aether Vision on boot with systemd (asks for sudo) |
+| `--service` | Starts Aether Vision on boot with systemd |
 | `--mock-config` | Uses a simulated camera, for machines without one |
 | `--dev` / `--test` | Installs development tools / also runs the test suite |
-| `--no-frontend`, `--no-realsense`, `--no-litert` | Skip a component |
+| `--no-frontend`, `--no-realsense`, `--no-litert`, `--no-udev` | Skip a component |
+| `--no-system-packages` | Don't touch OS packages (install them yourself) |
 
-A typical robot coprocessor install is `scripts/install.sh --udev --service`.
+A typical robot coprocessor install is `scripts/install.sh --service`.
 Run `scripts/install.sh --help` for all options.
 
 <details>
@@ -68,6 +80,9 @@ uv sync --extra realsense --extra litert
 ```bash
 uv run aether-vision run
 ```
+
+(If uv was just installed, open a new shell first, or use
+`.venv/bin/aether-vision run`.)
 
 Open the dashboard at **http://\<coprocessor\>:5803**. On first start a
 `config/config.json` with default settings is created: RealSense camera, the
