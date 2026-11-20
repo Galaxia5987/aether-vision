@@ -1,160 +1,149 @@
 # Aether Vision
 
-Depth-camera vision system for FRC robots, written in Python.
+Depth-camera vision for FRC robots. Aether Vision finds objects with YOLO,
+measures where they are in 3D with an Intel RealSense depth camera, and
+publishes the results to the robot over NetworkTables.
 
-* **Intel RealSense D435**: aligned color + depth
-* **YOLO** detection on the color stream, **depth deprojection** and
-  **point-cloud clustering** for 3D target positions in the robot frame
-* Inference on **CPU** (ONNX Runtime) or the **Qualcomm QCS6490 NPU**
-  (LiteRT + QNN delegate, or ONNX Runtime's QNN execution provider)
-* Results, telemetry and logs published to **NetworkTables** (ntcore)
-* Web dashboard: live streams, telemetry, results, logs, configuration editor
-* Automatic camera reconnection, pipeline error recovery, stall watchdog, and
-  clean restarts, including after code changes
+```
+RealSense D435 ──► YOLO on color ──► depth points in each box ──► clustering ──► 3D position ──► NetworkTables
+                                                                                        └──────► web dashboard
+```
 
-See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the design.
+**Features**
 
-## Quick start
+- Intel RealSense D435/D4xx with color aligned to depth. USB webcams and a
+  mock camera work for testing.
+- YOLO inference on CPU (ONNX Runtime) or on the **Qualcomm QCS6490 NPU**
+  (LiteRT + QNN delegate).
+- Target positions in the WPILib robot frame, timestamped with the robot's
+  clock for latency compensation.
+- Web dashboard with live camera streams, results, telemetry, logs, and a
+  settings editor. Most settings apply immediately.
+- Recovers on its own from camera unplugs, pipeline errors, crashes, and stalls.
+- Pipelines are plain Python classes, easy to change or add.
+
+## Requirements
+
+| | |
+|---|---|
+| OS | Linux (Ubuntu 22.04 or newer, x86-64 or ARM64). macOS works for development. |
+| Python | Installed automatically (3.12) by [uv](https://docs.astral.sh/uv/) |
+| Node.js | 20.19+ or 22.12+, only to build the dashboard |
+| Camera | Intel RealSense D435 (or any D4xx). Optional for development. |
+
+## Install
 
 ```bash
-uv sync --all-extras          # or: uv sync --extra realsense
-cd frontend && npm install && npm run build && cd ..
-uv run aether-vision run      # supervised; dashboard on http://<host>:5803
+git clone https://github.com/Galaxia5987/aether-vision.git
+cd aether-vision
+scripts/install.sh
 ```
 
-On first start `config/config.json` is written with defaults (RealSense camera,
-`object_detection` pipeline, NetworkTables client for team 5987).
+The script installs uv if needed, creates the Python environment in `.venv/`,
+and builds the dashboard. Useful options:
 
-No camera at hand? Select the `mock` camera in the dashboard, or put this in
-`config/config.json`:
+| Option | What it does |
+|---|---|
+| `--udev` | Lets the RealSense camera work without root (installs udev rules, asks for sudo) |
+| `--service` | Starts Aether Vision on boot with systemd (asks for sudo) |
+| `--mock-config` | Uses a simulated camera, for machines without one |
+| `--dev` / `--test` | Installs development tools / also runs the test suite |
+| `--no-frontend`, `--no-realsense`, `--no-litert` | Skip a component |
 
-```json
-{ "camera": { "source": { "kind": "mock", "image_path": "some_photo.jpg" } },
-  "network_tables": { "mode": "server" } }
+A typical robot coprocessor install is `scripts/install.sh --udev --service`.
+Run `scripts/install.sh --help` for all options.
+
+<details>
+<summary>Manual install</summary>
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh     # if uv is missing
+uv sync --extra realsense --extra litert
+(cd frontend && npm ci && npm run build)
+```
+</details>
+
+## Usage
+
+```bash
+uv run aether-vision run
 ```
 
-### Commands
+Open the dashboard at **http://\<coprocessor\>:5803**. On first start a
+`config/config.json` with default settings is created: RealSense camera, the
+`object_detection` pipeline, and a NetworkTables client for team 5987.
+
+No camera? Start with the mock camera and a local NetworkTables server:
+
+```bash
+uv run aether-vision run --config examples/config.mock.json
+```
 
 | Command | Purpose |
 |---|---|
-| `aether-vision run [--reload]` | Supervisor + worker. Respawns the worker on restart requests and crashes; `--reload` restarts on code changes |
-| `aether-vision worker` | Run the vision process directly (a restart re-execs the process) |
-| `aether-vision schema` | Print the configuration JSON schemas |
-| `aether-vision pipelines` | List registered pipelines |
+| `aether-vision run` | Normal mode. A supervisor restarts the vision process after crashes and restart requests |
+| `aether-vision run --reload` | Development: restart automatically when source files change |
+| `aether-vision worker` | Run without the supervisor |
+| `aether-vision pipelines` | List available pipelines |
+| `aether-vision schema` | Print the full configuration schema (JSON) |
 
-`--config PATH` (or `AETHER_VISION_CONFIG`) selects the config file.
+All commands take `--config PATH`, or the `AETHER_VISION_CONFIG` environment
+variable.
 
-### Development
+### Dashboard
 
-```bash
-uv run pytest            # tests
-uv run mypy              # strict type checking (src + tests)
-uv run ruff check . && uv run ruff format .
-cd frontend && npm run dev   # UI with hot reload, proxies /api to :5803
-```
+- **Status**: camera, pipeline and NetworkTables health, with buttons to
+  restart the pipeline, the camera, or the whole process. A process restart
+  also reloads code.
+- **Streams**: `annotated` (detections drawn on the image), `color`, and
+  `depth`. Add views with **+ view**.
+- **Results / Telemetry / Logs**: live tabs at the bottom.
+- **Configuration**: every setting. Click **Save** to apply. Settings marked
+  ⟳ restart the pipeline or process; all others apply on the next frame.
 
-## Restarting
+### On the robot
 
-| Action | How | Reloads code |
+The main topics, under `/AetherVision`:
+
+| Topic | Type | Meaning |
 |---|---|---|
-| Hot config | Save a setting in the UI (fields without ⟳) | — |
-| Pipeline restart | UI button, or saving a ⟳ pipeline field | no |
-| Camera restart | UI button, or saving camera settings | no |
-| Process restart | UI button, `--reload` file change, stall watchdog | **yes** |
+| `results/has_target` | boolean | At least one target in the latest frame |
+| `results/best/x`, `y`, `z` | double | Position of the best target, meters, robot frame (x forward, y left, z up) |
+| `results/best/distance` | double | Distance from the camera, meters |
+| `results/best/class_name` | string | What was detected |
+| `results/timestamp_us` | int | Capture time on the robot's clock, for latency compensation |
+| `results/targets_flat` | double[] | All targets, 10 numbers each (field names in `results/targets_flat_fields`) |
+| `status/heartbeat` | int | Increments twice a second while running |
 
-A process restart shuts down gracefully: threads stop, the camera is released
-and NT is flushed. Then the supervisor starts a fresh worker, or the
-unsupervised worker `exec`s itself.
+Set where the camera is mounted (`localization.extrinsics` in the pipeline
+settings) so positions are relative to the robot center. Positions are NaN
+when depth was unavailable.
 
-## Writing a pipeline
+## Documentation
 
-```python
-# src/aether_vision/pipeline/pipelines/my_pipeline.py
-from pydantic import Field
+| Document | Contents |
+|---|---|
+| [Configuration](docs/CONFIGURATION.md) | Every setting, including camera mounting and NetworkTables |
+| [Deployment](docs/DEPLOYMENT.md) | Coprocessor setup, systemd, QCS6490 NPU, updating, troubleshooting |
+| [Writing pipelines](docs/PIPELINES.md) | Adding your own processing, telemetry and settings |
+| [Architecture](docs/ARCHITECTURE.md) | How the system is designed |
+| [Contributing](CONTRIBUTING.md) | Development workflow and checks |
 
-from aether_vision.config.base import RESTART_REQUIRED, ConfigModel
-from aether_vision.core.types import FrameSet, StreamKind
-from aether_vision.pipeline.base import Pipeline
-from aether_vision.pipeline.pipelines.stages import DetectStage
-from aether_vision.pipeline.registry import register_pipeline
-from aether_vision.pipeline.result import PipelineResult, Target
-from aether_vision.inference.yolo import YoloConfig
-
-
-class MyConfig(ConfigModel):              # shown in the UI automatically
-    detector: YoloConfig = Field(default_factory=YoloConfig)
-    min_area_px: float = Field(400.0, ge=0.0)          # applied live
-    mode: str = Field("fast", json_schema_extra=RESTART_REQUIRED)  # restarts pipeline
-
-
-@register_pipeline
-class MyPipeline(Pipeline[MyConfig]):
-    name = "my_pipeline"
-    config_type = MyConfig
-    required_streams = frozenset({StreamKind.COLOR})
-
-    def setup(self) -> None:              # runs on the pipeline thread
-        self.detect = self.add_stage(DetectStage(lambda: self.config.detector))
-
-    def process(self, frames: FrameSet) -> PipelineResult:
-        detections = [
-            d for d in self.detect(frames.require_color())   # stage call is timed
-            if d.box.area >= self.config.min_area_px         # self.config is always current
-        ]
-        self.telemetry.put("kept", len(detections))          # -> NT + dashboard
-        return PipelineResult(
-            self.name, frames.frame_number, frames.capture_time_s,
-            targets=tuple(Target(d) for d in detections),
-        )
-```
-
-Then import the module in `pipeline/pipelines/__init__.py`.
-
-* `self.telemetry.put(key, value)` takes bools, numbers, strings, sequences or
-  numpy arrays. It never blocks, and it is published to NT at
-  `/<root>/pipeline/<name>/<key>` and to the dashboard.
-* `self.debug.wants("name")` / `self.debug.publish("name", image)` add a debug
-  stream to the dashboard. Rendering is skipped when nobody is watching.
-* `self.logger` is a normal `logging.Logger`. Records go to the console, the
-  rotating file, the dashboard and NT (`/<root>/log/messages`).
-* Stages (`Stage[In, Out]`) get `setup` / `process` / `teardown`, automatic
-  `latency_ms` telemetry and their own telemetry scope.
-
-## NetworkTables layout
+## Project layout
 
 ```
-/AetherVision/results/timestamp_us        int     capture time, robot (server) clock
-/AetherVision/results/latency_ms          double  capture → result
-/AetherVision/results/count, has_target, frame, pipeline, json
-/AetherVision/results/targets_flat        double[] 10 per target, robot frame (see targets_flat_fields)
-/AetherVision/results/best/{x,y,z,distance,confidence,class_id,class_name}
-/AetherVision/status/{heartbeat,uptime_s,version,restart_pending}
-/AetherVision/camera/{state,connected,fps,reconnects,last_error,...}
-/AetherVision/pipeline/{state,fps,latency_ms,last_error,...}
-/AetherVision/pipeline/<name>/...         pipeline + stage telemetry
-/AetherVision/log/{messages,last_error}
+src/aether_vision/   Python package (camera, inference, vision, pipeline, web, ...)
+frontend/            Svelte dashboard
+tests/               pytest suite
+models/              YOLO models (yolov8n.onnx, COCO classes)
+examples/            Example configurations
+scripts/install.sh   Installer
+deploy/              systemd unit template
+docs/                Documentation
 ```
 
-All `results/*` values of one frame share the capture timestamp. Positions use
-the WPILib robot frame (x forward, y left, z up). Set the camera pose under
-`localization.extrinsics` in the pipeline settings.
+## License note
 
-## QCS6490
-
-Two options:
-
-1. **LiteRT + QNN delegate (recommended).** Export a quantized TFLite model, e.g.
-   with Ultralytics `yolo export format=tflite int8=True` or from Qualcomm AI Hub.
-   Install the extra (`uv sync --extra litert`), then set
-   `detector.backend = {"kind": "litert", "delegate": "qnn", "qnn_backend": "htp"}`
-   and `detector.model_path` to the `.tflite`. The delegate library
-   (`libQnnTFLiteDelegate.so`) comes with the Qualcomm AI Engine Direct SDK /
-   Qualcomm Linux image. Set `delegate_path` if it is not on the library path.
-   If the model outputs normalized boxes, set `box_units` to `normalized`; the
-   `auto` default usually detects this.
-2. **ONNX Runtime with QNN EP.** With an ONNX Runtime build that includes
-   `QNNExecutionProvider`, set
-   `detector.backend.providers = ["QNNExecutionProvider", "CPUExecutionProvider"]`.
-
-`pyrealsense2` has no PyPI wheels for some aarch64 platforms. If so, build
-librealsense with `-DBUILD_PYTHON_BINDINGS=ON` and install it into the venv.
+The bundled `models/yolov8n.onnx` is an Ultralytics YOLOv8n model, licensed
+under AGPL-3.0. Use your own trained model for competition objects (see
+[Configuration](docs/CONFIGURATION.md#detector)).
