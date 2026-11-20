@@ -8,12 +8,6 @@ from pathlib import Path
 from aether_vision.app import Application, ExitReason
 
 
-def _field(app: Application, section: str, key: str) -> object:
-    value = app.status()[section]
-    assert isinstance(value, dict)
-    return value[key]
-
-
 def test_application_end_to_end(tmp_path: Path, waiter: Callable[..., bool]) -> None:
     config_path = tmp_path / "config.json"
     config_path.write_text(
@@ -32,8 +26,8 @@ def test_application_end_to_end(tmp_path: Path, waiter: Callable[..., bool]) -> 
     thread = threading.Thread(target=lambda: reason.append(app.run()))
     thread.start()
     try:
-        assert waiter(lambda: _field(app, "pipeline", "state") == "running", 10.0)
-        assert waiter(lambda: float(str(_field(app, "camera", "fps"))) > 1.0, 10.0)
+        assert waiter(lambda: app.status().pipeline.state == "running", 10.0)
+        assert waiter(lambda: app.status().camera.fps > 1.0, 10.0)
         app.restart_process()
         thread.join(15.0)
     finally:

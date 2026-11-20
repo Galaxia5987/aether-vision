@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from typing import Any
 
 import ntcore
@@ -10,6 +11,20 @@ import ntcore
 from aether_vision.telemetry.bus import TelemetryDelta, TelemetryValue
 
 _log = logging.getLogger(__name__)
+
+
+_Instance = ntcore.NetworkTableInstance
+#: NT type string -> topic getter.
+_TOPIC_GETTERS: dict[str, Callable[[_Instance, str], Any]] = {
+    "boolean": _Instance.getBooleanTopic,
+    "integer": _Instance.getIntegerTopic,
+    "double": _Instance.getDoubleTopic,
+    "string": _Instance.getStringTopic,
+    "boolean[]": _Instance.getBooleanArrayTopic,
+    "integer[]": _Instance.getIntegerArrayTopic,
+    "double[]": _Instance.getDoubleArrayTopic,
+    "string[]": _Instance.getStringArrayTopic,
+}
 
 
 def _topic_kind(value: TelemetryValue) -> str:
@@ -49,25 +64,7 @@ class NetworkTablesTelemetrySink:
             _log.warning("Telemetry key %s changed type %s -> %s", key, existing[0], kind)
             existing[1].close()
         name = f"{self._root}/{key}"
-        inst = self._instance
-        publisher: Any
-        match kind:
-            case "boolean":
-                publisher = inst.getBooleanTopic(name).publish()
-            case "integer":
-                publisher = inst.getIntegerTopic(name).publish()
-            case "double":
-                publisher = inst.getDoubleTopic(name).publish()
-            case "string":
-                publisher = inst.getStringTopic(name).publish()
-            case "boolean[]":
-                publisher = inst.getBooleanArrayTopic(name).publish()
-            case "integer[]":
-                publisher = inst.getIntegerArrayTopic(name).publish()
-            case "double[]":
-                publisher = inst.getDoubleArrayTopic(name).publish()
-            case _:
-                publisher = inst.getStringArrayTopic(name).publish()
+        publisher = _TOPIC_GETTERS[kind](self._instance, name).publish()
         self._publishers[key] = (kind, publisher)
         return publisher
 

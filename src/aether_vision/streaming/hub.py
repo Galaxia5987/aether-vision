@@ -5,7 +5,7 @@ from __future__ import annotations
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
 import cv2
 
@@ -21,16 +21,18 @@ class EncodedFrame:
     jpeg: bytes
 
 
-class _Stream:
-    """One stream: produces the latest image on demand and caches its JPEG."""
+class Stream(Generic[SourceT]):
+    """An image rendered from a :class:`LatestValue`, rendered and encoded only on demand.
+
+    The rendered image and JPEG are cached per source sequence number, so any
+    number of viewers share one encode per frame.
+    """
 
     def __init__(
-        self,
-        current_seq: Callable[[], int],
-        produce: Callable[[], tuple[int, ColorImage] | None],
+        self, source: LatestValue[SourceT], render: Callable[[SourceT], ColorImage | None]
     ) -> None:
-        self._current_seq = current_seq
-        self._produce = produce
+        self._source = source
+        self._render = render
         self._lock = threading.Lock()
         self._cache: EncodedFrame | None = None
         self._cache_quality = -1
@@ -38,25 +40,24 @@ class _Stream:
 
     def latest_seq(self) -> int:
         """Sequence number of the newest source value; cheap, never renders or encodes."""
-        return self._current_seq()
+        latest = self._source.get()
+        return 0 if latest is None else latest.seq
 
     def encode(self, quality: int) -> EncodedFrame | None:
-        """Encode the newest image, reusing the cached JPEG if nothing changed."""
         with self._lock:
-            produced = self._produce()
-            if produced is None:
+            latest = self._source.get()
+            if latest is None:
                 return None
-            seq, image = produced
-            if (
-                self._cache is not None
-                and self._cache.seq == seq
-                and self._cache_quality == quality
-            ):
-                return self._cache
+            cache = self._cache
+            if cache is not None and cache.seq == latest.seq and self._cache_quality == quality:
+                return cache
+            image = self._render(latest.value)
+            if image is None:
+                return None
             ok, buffer = cv2.imencode(".jpg", image, [cv2.IMWRITE_JPEG_QUALITY, quality])
             if not ok:
                 return None
-            self._cache = EncodedFrame(seq, buffer.tobytes())
+            self._cache = EncodedFrame(latest.seq, buffer.tobytes())
             self._cache_quality = quality
             return self._cache
 
@@ -74,71 +75,27 @@ class _Stream:
             return self._viewers
 
 
-def _seq_of(value: LatestValue[SourceT]) -> int:
-    latest = value.get()
-    return 0 if latest is None else latest.seq
-
-
-class _DerivedSource(Generic[SourceT]):
-    """Renders an image from another :class:`LatestValue` only when requested."""
-
-    def __init__(
-        self, source: LatestValue[SourceT], render: Callable[[SourceT], ColorImage | None]
-    ) -> None:
-        self._source = source
-        self._render = render
-        self._lock = threading.Lock()
-        self._rendered: tuple[int, ColorImage] | None = None
-
-    def __call__(self) -> tuple[int, ColorImage] | None:
-        latest = self._source.get()
-        if latest is None:
-            return None
-        with self._lock:
-            if self._rendered is not None and self._rendered[0] == latest.seq:
-                return self._rendered
-            image = self._render(latest.value)
-            if image is None:
-                return None
-            self._rendered = (latest.seq, image)
-            return self._rendered
+def _identity(image: ColorImage) -> ColorImage:
+    return image
 
 
 class StreamHub:
     """Registry of debug streams. Thread-safe.
 
-    Publishing a frame is a pointer swap. Encoding happens on the web server's
-    threads, only while somebody is watching.
+    Publishing a frame is a pointer swap; rendering and encoding happen on the
+    web server's threads, only while somebody is watching.
     """
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self._streams: dict[str, _Stream] = {}
-        self._direct: dict[str, LatestValue[ColorImage]] = {}
+        self._streams: dict[str, Stream[Any]] = {}
+        self._published: dict[str, LatestValue[ColorImage]] = {}
 
     def names(self) -> list[str]:
         with self._lock:
             return list(self._streams)
 
-    def _get_or_create_direct(self, name: str) -> LatestValue[ColorImage]:
-        with self._lock:
-            slot = self._direct.get(name)
-            if slot is None:
-                slot = LatestValue[ColorImage]()
-                self._direct[name] = slot
-                bound = slot
-
-                def produce() -> tuple[int, ColorImage] | None:
-                    latest = bound.get()
-                    return None if latest is None else (latest.seq, latest.value)
-
-                self._streams[name] = _Stream(lambda: _seq_of(bound), produce)
-            return slot
-
-    def publish(self, name: str, image: ColorImage) -> None:
-        self._get_or_create_direct(name).put(image)
-
-    def register_derived(
+    def register(
         self,
         name: str,
         source: LatestValue[SourceT],
@@ -146,14 +103,18 @@ class StreamHub:
     ) -> None:
         """Register a stream rendered lazily from another value (e.g. colorized depth)."""
         with self._lock:
-            self._streams[name] = _Stream(lambda: _seq_of(source), _DerivedSource(source, render))
+            self._streams[name] = Stream(source, render)
 
-    def has_viewers(self, name: str) -> bool:
+    def publish(self, name: str, image: ColorImage) -> None:
+        """Publish a ready-made image, creating the stream on first use."""
         with self._lock:
-            stream = self._streams.get(name)
-        return stream is not None and stream.viewers > 0
+            slot = self._published.get(name)
+            if slot is None:
+                slot = self._published[name] = LatestValue()
+                self._streams[name] = Stream(slot, _identity)
+        slot.put(image)
 
-    def stream(self, name: str) -> _Stream | None:
+    def stream(self, name: str) -> Stream[Any] | None:
         with self._lock:
             return self._streams.get(name)
 
@@ -161,17 +122,14 @@ class StreamHub:
 class DebugStreams:
     """Pipeline-facing facade: publish debug images, skip work when nobody watches."""
 
-    def __init__(self, hub: StreamHub, always_render: bool = False) -> None:
+    def __init__(self, hub: StreamHub) -> None:
         self._hub = hub
-        self._always_render = always_render
 
     def wants(self, name: str) -> bool:
-        """``True`` if a client is watching ``name`` (or the stream does not exist yet)."""
-        if self._always_render:
-            return True
-        if self._hub.stream(name) is None:
-            return True  # first publish registers the stream so the UI can list it
-        return self._hub.has_viewers(name)
+        """``True`` if a client is watching ``name``, or the stream does not exist yet
+        (the first publish registers it so the UI can list it)."""
+        stream = self._hub.stream(name)
+        return stream is None or stream.viewers > 0
 
     def publish(self, name: str, image: ColorImage) -> None:
         self._hub.publish(name, image)

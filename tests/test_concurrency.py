@@ -55,7 +55,7 @@ def test_service_thread_records_failure() -> None:
     assert isinstance(thread.failed, RuntimeError)
 
 
-def test_service_thread_stop_and_restart() -> None:
+def test_service_thread_stop_and_start_again() -> None:
     thread = _Looping()
     thread.start()
     time.sleep(0.03)
@@ -63,7 +63,7 @@ def test_service_thread_stop_and_restart() -> None:
     assert thread.stop(1.0)
     assert not thread.is_running
     before = thread.iterations
-    assert thread.restart(1.0)
+    thread.start()
     time.sleep(0.03)
     assert thread.iterations > before
     thread.stop(1.0)

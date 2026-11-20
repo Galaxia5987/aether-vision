@@ -109,10 +109,6 @@ class TelemetryBus:
             self._values[key] = (self._seq, normalized)
             self._removed.pop(key, None)
 
-    def put_many(self, values: dict[str, TelemetryInput]) -> None:
-        for key, value in values.items():
-            self.put(key, value)
-
     def get(self, key: str) -> TelemetryValue | None:
         with self._lock:
             entry = self._values.get(key)

@@ -10,6 +10,7 @@ from aether_vision.config.store import ConfigStore
 from aether_vision.core.concurrency import LatestValue
 from aether_vision.logging_setup.buffer import LogBuffer
 from aether_vision.pipeline.result import PipelineResult
+from aether_vision.status import AppStatus
 from aether_vision.streaming.hub import StreamHub
 from aether_vision.telemetry.bus import TelemetryBus
 
@@ -29,5 +30,5 @@ class WebServices:
     logs: LogBuffer
     results: LatestValue[PipelineResult]
     streams: StreamHub
-    status: Callable[[], dict[str, object]]
+    status: Callable[[], AppStatus]
     controls: Controls

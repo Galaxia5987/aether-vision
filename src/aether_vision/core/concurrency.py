@@ -62,12 +62,6 @@ class LatestValue(Generic[T]):
                 self._condition.wait(remaining)
             return self._latest
 
-    def clear(self) -> None:
-        """Drop the stored value. The sequence counter keeps increasing."""
-        with self._condition:
-            self._latest = None
-            self._condition.notify_all()
-
     @property
     def seq(self) -> int:
         with self._condition:
@@ -130,12 +124,6 @@ class ServiceThread(ABC):
             else:
                 self._log.error("Thread %s did not stop within %.1fs", self._name, timeout)
             return stopped
-
-    def restart(self, timeout: float = 5.0) -> bool:
-        if not self.stop(timeout):
-            return False
-        self.start()
-        return True
 
     def on_stop_requested(self) -> None:  # noqa: B027 - optional hook
         """Hook to unblock ``run_loop`` (e.g. close a socket). Called with the stop event set."""

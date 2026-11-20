@@ -7,18 +7,6 @@ import numpy as np
 from aether_vision.core.types import BoundingBox, CameraIntrinsics, DepthImage, FloatArray
 
 
-def deproject_pixel(u: float, v: float, depth_m: float, intrinsics: CameraIntrinsics) -> FloatArray:
-    """Deproject a single pixel. Returns ``[x, y, z]`` in meters."""
-    return np.array(
-        [
-            (u - intrinsics.cx) / intrinsics.fx * depth_m,
-            (v - intrinsics.cy) / intrinsics.fy * depth_m,
-            depth_m,
-        ],
-        dtype=np.float32,
-    )
-
-
 def roi_point_cloud(
     depth: DepthImage,
     depth_scale_m: float,

@@ -6,25 +6,18 @@ Camera optical frame (RealSense): x right, y down, z forward.
 
 from __future__ import annotations
 
-import math
-from dataclasses import dataclass
 from typing import Final
 
 import numpy as np
-import numpy.typing as npt
 from pydantic import Field
+from scipy.spatial.transform import Rotation
 
 from aether_vision.config.base import ConfigModel
 from aether_vision.core.types import FloatArray
 
-#: Rotation taking optical-frame vectors to a camera "body" frame aligned with WPILib axes.
-OPTICAL_TO_BODY: Final[npt.NDArray[np.float64]] = np.array(
-    [
-        [0.0, 0.0, 1.0],  # body x (forward) = optical z
-        [-1.0, 0.0, 0.0],  # body y (left)   = -optical x
-        [0.0, -1.0, 0.0],  # body z (up)     = -optical y
-    ]
-)
+#: Optical frame -> camera "body" frame aligned with WPILib axes
+#: (body x = optical z, body y = -optical x, body z = -optical y).
+OPTICAL_TO_BODY: Final = Rotation.from_matrix([[0, 0, 1], [-1, 0, 0], [0, -1, 0]])
 
 
 class CameraExtrinsics(ConfigModel):
@@ -38,36 +31,17 @@ class CameraExtrinsics(ConfigModel):
     yaw_deg: float = 0.0
 
 
-def rotation_from_rpy(roll: float, pitch: float, yaw: float) -> npt.NDArray[np.float64]:
-    """Z-Y-X (yaw, pitch, roll) rotation matrix, radians."""
-    cr, sr = math.cos(roll), math.sin(roll)
-    cp, sp = math.cos(pitch), math.sin(pitch)
-    cy, sy = math.cos(yaw), math.sin(yaw)
-    rz = np.array([[cy, -sy, 0.0], [sy, cy, 0.0], [0.0, 0.0, 1.0]])
-    ry = np.array([[cp, 0.0, sp], [0.0, 1.0, 0.0], [-sp, 0.0, cp]])
-    rx = np.array([[1.0, 0.0, 0.0], [0.0, cr, -sr], [0.0, sr, cr]])
-    rotation: npt.NDArray[np.float64] = rz @ ry @ rx
-    return rotation
+class CameraToRobot:
+    """Maps optical-frame points to the robot frame for a given camera mounting."""
 
-
-@dataclass(frozen=True, slots=True)
-class RigidTransform:
-    rotation: npt.NDArray[np.float64]  # 3x3
-    translation: npt.NDArray[np.float64]  # 3
+    def __init__(self, extrinsics: CameraExtrinsics) -> None:
+        mount = Rotation.from_euler(
+            "ZYX", [extrinsics.yaw_deg, extrinsics.pitch_deg, extrinsics.roll_deg], degrees=True
+        )
+        self._rotation = mount * OPTICAL_TO_BODY
+        self._translation = np.array([extrinsics.x_m, extrinsics.y_m, extrinsics.z_m])
 
     def apply(self, points: FloatArray) -> FloatArray:
         """Transform ``(N, 3)`` or ``(3,)`` points."""
-        transformed = points.astype(np.float64) @ self.rotation.T + self.translation
-        return transformed.astype(np.float32)
-
-    @staticmethod
-    def camera_to_robot(extrinsics: CameraExtrinsics) -> RigidTransform:
-        mount = rotation_from_rpy(
-            math.radians(extrinsics.roll_deg),
-            math.radians(extrinsics.pitch_deg),
-            math.radians(extrinsics.yaw_deg),
-        )
-        return RigidTransform(
-            rotation=mount @ OPTICAL_TO_BODY,
-            translation=np.array([extrinsics.x_m, extrinsics.y_m, extrinsics.z_m]),
-        )
+        rotated: FloatArray = np.asarray(self._rotation.apply(points), dtype=np.float32)
+        return rotated + self._translation.astype(np.float32)

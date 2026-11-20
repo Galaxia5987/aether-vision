@@ -30,7 +30,6 @@ _log = logging.getLogger(__name__)
 
 _PAD_VALUE: Final = 114
 _DEFAULT_INPUT_SIZE: Final = 640
-_CLASS_OFFSET: Final = 8192.0  # per-class NMS via coordinate offsets
 
 OutputLayout = Literal["auto", "channels_first", "anchors_first", "end2end"]
 
@@ -267,12 +266,8 @@ class YoloDetector:
             scores = rows[:, 4:]
             class_ids = np.argmax(scores, axis=1)
             confidences = scores[np.arange(scores.shape[0]), class_ids]
-            cxcywh = rows[:, :4]
-            boxes_xyxy = np.empty_like(cxcywh)
-            boxes_xyxy[:, 0] = cxcywh[:, 0] - cxcywh[:, 2] / 2.0
-            boxes_xyxy[:, 1] = cxcywh[:, 1] - cxcywh[:, 3] / 2.0
-            boxes_xyxy[:, 2] = cxcywh[:, 0] + cxcywh[:, 2] / 2.0
-            boxes_xyxy[:, 3] = cxcywh[:, 1] + cxcywh[:, 3] / 2.0
+            centers, half_sizes = rows[:, :2], rows[:, 2:4] / 2.0
+            boxes_xyxy = np.hstack((centers - half_sizes, centers + half_sizes))
 
         keep = confidences >= cfg.confidence_threshold
         if cfg.class_filter:
@@ -321,26 +316,15 @@ class YoloDetector:
         class_ids: npt.NDArray[np.int64],
         cfg: YoloConfig,
     ) -> list[int]:
-        offsets = (
-            np.zeros((len(class_ids), 1), dtype=np.float32)
-            if cfg.class_agnostic_nms
-            else (class_ids.astype(np.float32) * _CLASS_OFFSET)[:, None]
-        )
-        shifted = boxes_xyxy + offsets
-        xywh = np.column_stack(
-            (
-                shifted[:, 0],
-                shifted[:, 1],
-                shifted[:, 2] - shifted[:, 0],
-                shifted[:, 3] - shifted[:, 1],
+        xywh = np.hstack((boxes_xyxy[:, :2], boxes_xyxy[:, 2:] - boxes_xyxy[:, :2])).tolist()
+        scores = confidences.tolist()
+        args = (cfg.confidence_threshold, cfg.iou_threshold)
+        if cfg.class_agnostic_nms:
+            indices = cv2.dnn.NMSBoxes(xywh, scores, *args, top_k=cfg.max_detections)
+        else:
+            classes = class_ids.tolist()
+            indices = cv2.dnn.NMSBoxesBatched(
+                xywh, scores, classes, *args, top_k=cfg.max_detections
             )
-        )
-        indices = cv2.dnn.NMSBoxes(
-            xywh.tolist(),
-            confidences.tolist(),
-            cfg.confidence_threshold,
-            cfg.iou_threshold,
-            top_k=cfg.max_detections,
-        )
         flat = np.asarray(indices, dtype=np.int64).reshape(-1)
         return [int(i) for i in flat[: cfg.max_detections]]

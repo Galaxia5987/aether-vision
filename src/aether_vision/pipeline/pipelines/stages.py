@@ -10,20 +10,14 @@ import numpy as np
 from pydantic import Field
 
 from aether_vision.config.base import ConfigModel
-from aether_vision.core.types import ColorImage, Detection, FrameSet
+from aether_vision.core.types import ColorImage, Detection, FloatArray, FrameSet
 from aether_vision.inference.yolo import YoloConfig, YoloDetector
 from aether_vision.pipeline.base import Stage
-from aether_vision.pipeline.result import Target
-from aether_vision.vision.clustering import (
-    Cluster,
-    ClustererConfig,
-    PointCloudClusterer,
-    VoxelClustererConfig,
-    create_clusterer,
-)
+from aether_vision.pipeline.result import Target, Vec3
+from aether_vision.vision.clustering import ClusteringConfig, euclidean_clusters
 from aether_vision.vision.deprojection import roi_point_cloud
 from aether_vision.vision.drawing import class_color, draw_box, draw_text
-from aether_vision.vision.transforms import CameraExtrinsics, RigidTransform
+from aether_vision.vision.transforms import CameraExtrinsics, CameraToRobot
 
 # ----------------------------------------------------------------------- detect
 
@@ -67,8 +61,10 @@ class LocalizationConfig(ConfigModel):
     sample_stride: int = Field(2, ge=1, le=16, description="Use every Nth depth pixel")
     min_depth_m: float = Field(0.15, ge=0.0, le=20.0)
     max_depth_m: float = Field(8.0, gt=0.0, le=50.0)
-    max_points: int = Field(6000, ge=50, le=200_000)
-    clusterer: ClustererConfig = Field(default_factory=VoxelClustererConfig)
+    max_points: int = Field(
+        3000, ge=50, le=200_000, description="Depth points per box are subsampled to this"
+    )
+    clustering: ClusteringConfig = Field(default_factory=ClusteringConfig)
     cluster_selection: Literal["largest", "nearest"] = "largest"
     extrinsics: CameraExtrinsics = Field(default_factory=CameraExtrinsics)
 
@@ -85,26 +81,23 @@ class LocalizeStage(Stage[LocalizationInput, list[Target]]):
     def __init__(self, config: Callable[[], LocalizationConfig], name: str | None = None) -> None:
         super().__init__(name)
         self._config = config
-        self._cached_config: LocalizationConfig | None = None
-        self._clusterer: PointCloudClusterer | None = None
-        self._transform: RigidTransform | None = None
+        self._transform_for: CameraExtrinsics | None = None
+        self._transform: CameraToRobot | None = None
 
-    def _refresh(self, config: LocalizationConfig) -> tuple[PointCloudClusterer, RigidTransform]:
-        if config != self._cached_config or self._clusterer is None or self._transform is None:
-            self._clusterer = create_clusterer(config.clusterer)
-            self._transform = RigidTransform.camera_to_robot(config.extrinsics)
-            self._cached_config = config
-        return self._clusterer, self._transform
+    def _camera_to_robot(self, extrinsics: CameraExtrinsics) -> CameraToRobot:
+        if self._transform is None or extrinsics != self._transform_for:
+            self._transform = CameraToRobot(extrinsics)
+            self._transform_for = extrinsics
+        return self._transform
 
     def process(self, value: LocalizationInput) -> list[Target]:
         config = self._config()
         frames = value.frames
         if not config.enabled or frames.depth is None or frames.intrinsics is None:
             return [Target(detection) for detection in value.detections]
-        clusterer, transform = self._refresh(config)
+        transform = self._camera_to_robot(config.extrinsics)
         targets = [
-            self._localize(detection, frames, config, clusterer, transform)
-            for detection in value.detections
+            self._localize(detection, frames, config, transform) for detection in value.detections
         ]
         self.telemetry.put("localized", sum(t.position_camera is not None for t in targets))
         return targets
@@ -114,8 +107,7 @@ class LocalizeStage(Stage[LocalizationInput, list[Target]]):
         detection: Detection,
         frames: FrameSet,
         config: LocalizationConfig,
-        clusterer: PointCloudClusterer,
-        transform: RigidTransform,
+        transform: CameraToRobot,
     ) -> Target:
         points = roi_point_cloud(
             frames.require_depth(),
@@ -129,23 +121,26 @@ class LocalizeStage(Stage[LocalizationInput, list[Target]]):
         if points.shape[0] > config.max_points:
             keep = np.linspace(0, points.shape[0] - 1, config.max_points).astype(np.int64)
             points = points[keep]
-        clusters = clusterer.cluster(points)
+        clusters = euclidean_clusters(points, config.clustering)
         if not clusters:
             return Target(detection, point_count=int(points.shape[0]))
-        chosen: Cluster = (
+        chosen = (
             min(clusters, key=lambda c: c.distance)
             if config.cluster_selection == "nearest"
             else clusters[0]
         )
-        cam = chosen.centroid
-        robot = transform.apply(cam)
         return Target(
             detection=detection,
-            position_camera=(float(cam[0]), float(cam[1]), float(cam[2])),
-            position_robot=(float(robot[0]), float(robot[1]), float(robot[2])),
-            extent_m=(float(chosen.extent[0]), float(chosen.extent[1]), float(chosen.extent[2])),
+            position_camera=_vec3(chosen.centroid),
+            position_robot=_vec3(transform.apply(chosen.centroid)),
+            extent_m=_vec3(chosen.extent),
             point_count=chosen.size,
         )
+
+
+def _vec3(values: FloatArray) -> Vec3:
+    x, y, z = (float(v) for v in values)
+    return (x, y, z)
 
 
 # --------------------------------------------------------------------- annotate

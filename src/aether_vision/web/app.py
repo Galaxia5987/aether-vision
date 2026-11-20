@@ -12,12 +12,12 @@ from typing import Any, Final, Literal
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic_core import to_jsonable_python
 
 from aether_vision import __version__
 from aether_vision.config.models import AppConfig
 from aether_vision.config.store import ConfigError
 from aether_vision.pipeline.registry import pipeline_schemas
-from aether_vision.web.jsonsafe import json_safe
 from aether_vision.web.services import WebServices
 
 _log = logging.getLogger(__name__)
@@ -25,6 +25,12 @@ _log = logging.getLogger(__name__)
 _BOUNDARY: Final = "aether-frame"
 _WS_PERIOD_S: Final = 0.05
 _WS_STATUS_PERIOD_S: Final = 1.0
+
+
+def json_safe(value: object) -> Any:
+    """JSON-compatible form of ``value``; NaN/Infinity become null (browsers reject them)."""
+    return to_jsonable_python(value, inf_nan_mode="null")
+
 
 ControlAction = Literal["restart-pipeline", "restart-camera", "restart-process"]
 

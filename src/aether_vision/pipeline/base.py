@@ -25,13 +25,13 @@ own telemetry scope. Writing a new pipeline::
 from __future__ import annotations
 
 import logging
+import re
 import threading
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import ClassVar, Generic, TypeVar
 
 from aether_vision.config.base import ConfigModel
-from aether_vision.core.timing import Stopwatch
 from aether_vision.core.types import FrameSet, StreamKind
 from aether_vision.pipeline.result import PipelineResult
 from aether_vision.streaming.hub import DebugStreams
@@ -103,11 +103,8 @@ class Stage(ABC, Generic[InT, OutT]):
         """Release resources. Called once, on the pipeline thread."""
 
     def __call__(self, value: InT) -> OutT:
-        watch = Stopwatch()
-        with watch:
-            result = self.process(value)
-        self.telemetry.put("latency_ms", round(watch.elapsed_ms, 3))
-        return result
+        with self.telemetry.timer("latency_ms"):
+            return self.process(value)
 
 
 class Pipeline(ABC, Generic[ConfigT]):
@@ -180,9 +177,5 @@ class Pipeline(ABC, Generic[ConfigT]):
 
 
 def _snake_case(name: str) -> str:
-    out: list[str] = []
-    for index, char in enumerate(name):
-        if char.isupper() and index > 0 and not name[index - 1].isupper():
-            out.append("_")
-        out.append(char.lower())
-    return "".join(out) or "stage"
+    """``LocalizeStage`` -> ``localize``; ``YOLODetect`` -> ``yolo_detect``."""
+    return re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "_", name).lower() or "stage"

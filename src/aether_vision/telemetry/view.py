@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 
-from aether_vision.core.timing import Stopwatch
 from aether_vision.telemetry.bus import TelemetryBus, TelemetryInput, validate_key
 
 
@@ -17,7 +17,7 @@ class Telemetry:
         telemetry = Telemetry(bus, "pipeline")
         telemetry.put("detections", 3)               # -> pipeline/detections
         stage = telemetry.scope("stages/detect")
-        with stage.timer("latency_ms"):              # -> pipeline/stages/detect/latency_ms
+        with stage.timer("latency_ms"):            # -> pipeline/stages/detect/latency_ms
             ...
     """
 
@@ -41,10 +41,6 @@ class Telemetry:
     def put(self, name: str, value: TelemetryInput) -> None:
         self._bus.put(self.key(name), value)
 
-    def put_many(self, values: dict[str, TelemetryInput]) -> None:
-        for name, value in values.items():
-            self.put(name, value)
-
     def scope(self, name: str) -> Telemetry:
         return Telemetry(self._bus, self.key(name))
 
@@ -54,9 +50,8 @@ class Telemetry:
             self._bus.remove_prefix(self._prefix)
 
     @contextmanager
-    def timer(self, name: str = "latency_ms") -> Iterator[Stopwatch]:
-        """Time a block and publish its duration in milliseconds."""
-        watch = Stopwatch()
-        with watch:
-            yield watch
-        self.put(name, watch.elapsed_ms)
+    def timer(self, name: str = "latency_ms") -> Iterator[None]:
+        """Time a block and publish its duration in milliseconds (only if it succeeds)."""
+        start = time.perf_counter()
+        yield
+        self.put(name, round((time.perf_counter() - start) * 1000.0, 3))

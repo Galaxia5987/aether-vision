@@ -28,6 +28,12 @@ from aether_vision.pipeline.publisher import ResultPublisher, ResultSink
 from aether_vision.pipeline.registry import validate_app_config
 from aether_vision.pipeline.result import PipelineResult
 from aether_vision.pipeline.runner import PipelineRunner, PipelineState
+from aether_vision.status import (
+    AppStatus,
+    CameraStatus,
+    NetworkTablesStatus,
+    PipelineStatus,
+)
 from aether_vision.streaming.hub import DebugStreams, StreamHub
 from aether_vision.telemetry.bus import TelemetryBus
 from aether_vision.telemetry.dispatcher import TelemetryDispatcher, TelemetrySink
@@ -63,9 +69,9 @@ class _StatusThread(PeriodicThread):
         status = self._app.status()
         telemetry = self._app.status_telemetry
         telemetry.put("heartbeat", self._heartbeat)
-        telemetry.put("uptime_s", round(float(str(status["uptime_s"])), 1))
-        telemetry.put("version", __version__)
-        telemetry.put("restart_pending", bool(status["restart_pending"]))
+        telemetry.put("uptime_s", status.uptime_s)
+        telemetry.put("version", status.version)
+        telemetry.put("restart_pending", status.restart_pending)
 
 
 class Application:
@@ -122,32 +128,35 @@ class Application:
             self._camera = self._create_camera(self._store.current)
             self._camera.start()
 
-    def status(self) -> dict[str, object]:
+    def status(self) -> AppStatus:
         camera = self._camera
         runner = self._runner
         nt = self._nt
-        return {
-            "version": __version__,
-            "uptime_s": time.monotonic() - self._started_s,
-            "supervised": os.environ.get(SUPERVISED_ENV) == "1",
-            "restart_pending": self._restart_pending,
-            "camera": {
-                "state": camera.state.value if camera else CameraState.STOPPED.value,
-                "source": camera.description if camera else "",
-                "fps": round(camera.fps, 2) if camera else 0.0,
-                "last_error": camera.last_error if camera else "",
-            },
-            "pipeline": {
-                "name": runner.pipeline_name if runner else "",
-                "state": runner.state.value if runner else PipelineState.STOPPED.value,
-                "fps": round(runner.fps, 2) if runner else 0.0,
-                "last_error": runner.last_error if runner else "",
-            },
-            "network_tables": {
-                "enabled": nt is not None,
-                "connected": nt.connected if nt else False,
-            },
-        }
+        return AppStatus(
+            version=__version__,
+            uptime_s=round(time.monotonic() - self._started_s, 1),
+            supervised=os.environ.get(SUPERVISED_ENV) == "1",
+            restart_pending=self._restart_pending,
+            camera=CameraStatus(
+                state=camera.state.value,
+                source=camera.description,
+                fps=round(camera.fps, 2),
+                last_error=camera.last_error,
+            )
+            if camera
+            else CameraStatus(state=CameraState.STOPPED.value),
+            pipeline=PipelineStatus(
+                state=runner.state.value,
+                name=runner.pipeline_name,
+                fps=round(runner.fps, 2),
+                last_error=runner.last_error,
+            )
+            if runner
+            else PipelineStatus(state=PipelineState.STOPPED.value),
+            network_tables=NetworkTablesStatus(
+                enabled=nt is not None, connected=nt is not None and nt.connected
+            ),
+        )
 
     # ---------------------------------------------------------------- lifecycle
 
@@ -194,8 +203,8 @@ class Application:
             )
             add_handler(self._nt_log_handler)
 
-        self._hub.register_derived("color", self._frames, lambda frames: frames.color)
-        self._hub.register_derived(
+        self._hub.register("color", self._frames, lambda frames: frames.color)
+        self._hub.register(
             "depth",
             self._frames,
             lambda frames: (

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 import tempfile
@@ -120,7 +119,7 @@ class ConfigStore:
 
     def _write(self, config: AppConfig) -> None:
         self._path.parent.mkdir(parents=True, exist_ok=True)
-        data = json.dumps(config.model_dump(mode="json"), indent=2) + "\n"
+        data = config.model_dump_json(indent=2) + "\n"
         fd, tmp_name = tempfile.mkstemp(dir=self._path.parent, prefix=".config-", suffix=".tmp")
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as handle:

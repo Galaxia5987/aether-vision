@@ -11,10 +11,23 @@ from aether_vision.core.concurrency import LatestValue
 from aether_vision.logging_setup.buffer import LogBuffer
 from aether_vision.pipeline.registry import validate_app_config
 from aether_vision.pipeline.result import PipelineResult
+from aether_vision.status import AppStatus, CameraStatus, NetworkTablesStatus, PipelineStatus
 from aether_vision.streaming.hub import StreamHub
 from aether_vision.telemetry.bus import TelemetryBus
 from aether_vision.web.app import create_app
 from aether_vision.web.services import WebServices
+
+
+def _status() -> AppStatus:
+    return AppStatus(
+        version="test",
+        uptime_s=1.0,
+        supervised=False,
+        restart_pending=False,
+        camera=CameraStatus(state="streaming"),
+        pipeline=PipelineStatus(state="running"),
+        network_tables=NetworkTablesStatus(enabled=False, connected=False),
+    )
 
 
 class _Controls:
@@ -52,7 +65,7 @@ def setup(tmp_path: Path) -> Setup:
         logs=LogBuffer(),
         results=results,
         streams=hub,
-        status=lambda: {"state": "ok"},
+        status=_status,
         controls=controls,
     )
     return TestClient(create_app(services, None)), services, controls

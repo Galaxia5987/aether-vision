@@ -4,15 +4,13 @@ from __future__ import annotations
 
 import json
 import math
-from typing import Final, SupportsFloat, SupportsIndex
+from typing import Final, Protocol, SupportsFloat, SupportsIndex, TypeVar
 
 import ntcore
 
 from aether_vision.networktables.timebase import monotonic_to_nt_us, to_server_time_us
 from aether_vision.pipeline.result import PipelineResult, Target
 
-#: Values per target in ``results/targets_flat``.
-FLAT_STRIDE: Final = 10
 FLAT_FIELDS: Final = (
     "class_id",
     "confidence",
@@ -25,6 +23,16 @@ FLAT_FIELDS: Final = (
     "width_px",
     "height_px",
 )
+
+
+class _Closeable(Protocol):
+    def close(self) -> None: ...
+
+
+PublisherT = TypeVar("PublisherT", bound=_Closeable)
+
+#: Values per target in ``results/targets_flat``.
+FLAT_STRIDE: Final = len(FLAT_FIELDS)
 
 
 def flatten_target(target: Target) -> list[float]:
@@ -50,24 +58,25 @@ class NetworkTablesResultSink:
 
     def __init__(self, instance: ntcore.NetworkTableInstance, root: str) -> None:
         self._instance = instance
+        self._publishers: list[_Closeable] = []
         table = instance.getTable(f"{root.rstrip('/')}/results")
-        self._timestamp = table.getIntegerTopic("timestamp_us").publish()
-        self._latency = table.getDoubleTopic("latency_ms").publish()
-        self._frame = table.getIntegerTopic("frame").publish()
-        self._count = table.getIntegerTopic("count").publish()
-        self._has_target = table.getBooleanTopic("has_target").publish()
-        self._json = table.getStringTopic("json").publish()
-        self._flat = table.getDoubleArrayTopic("targets_flat").publish()
-        self._flat_fields = table.getStringArrayTopic("targets_flat_fields").publish()
-        self._pipeline = table.getStringTopic("pipeline").publish()
+        self._timestamp = self._own(table.getIntegerTopic("timestamp_us").publish())
+        self._latency = self._own(table.getDoubleTopic("latency_ms").publish())
+        self._frame = self._own(table.getIntegerTopic("frame").publish())
+        self._count = self._own(table.getIntegerTopic("count").publish())
+        self._has_target = self._own(table.getBooleanTopic("has_target").publish())
+        self._json = self._own(table.getStringTopic("json").publish())
+        self._flat = self._own(table.getDoubleArrayTopic("targets_flat").publish())
+        self._flat_fields = self._own(table.getStringArrayTopic("targets_flat_fields").publish())
+        self._pipeline = self._own(table.getStringTopic("pipeline").publish())
         best = table.getSubTable("best")
-        self._best_x = best.getDoubleTopic("x").publish()
-        self._best_y = best.getDoubleTopic("y").publish()
-        self._best_z = best.getDoubleTopic("z").publish()
-        self._best_distance = best.getDoubleTopic("distance").publish()
-        self._best_confidence = best.getDoubleTopic("confidence").publish()
-        self._best_class_id = best.getIntegerTopic("class_id").publish()
-        self._best_class_name = best.getStringTopic("class_name").publish()
+        self._best_x = self._own(best.getDoubleTopic("x").publish())
+        self._best_y = self._own(best.getDoubleTopic("y").publish())
+        self._best_z = self._own(best.getDoubleTopic("z").publish())
+        self._best_distance = self._own(best.getDoubleTopic("distance").publish())
+        self._best_confidence = self._own(best.getDoubleTopic("confidence").publish())
+        self._best_class_id = self._own(best.getIntegerTopic("class_id").publish())
+        self._best_class_name = self._own(best.getStringTopic("class_name").publish())
         self._flat_fields.set(list(FLAT_FIELDS))
 
     def publish(self, result: PipelineResult) -> None:
@@ -97,23 +106,10 @@ class NetworkTablesResultSink:
             self._best_class_name.set(best.detection.class_name, stamp)
         self._instance.flush()
 
+    def _own(self, publisher: PublisherT) -> PublisherT:
+        self._publishers.append(publisher)
+        return publisher
+
     def close(self) -> None:
-        for publisher in (
-            self._timestamp,
-            self._latency,
-            self._frame,
-            self._count,
-            self._has_target,
-            self._json,
-            self._flat,
-            self._flat_fields,
-            self._pipeline,
-            self._best_x,
-            self._best_y,
-            self._best_z,
-            self._best_distance,
-            self._best_confidence,
-            self._best_class_id,
-            self._best_class_name,
-        ):
+        for publisher in self._publishers:
             publisher.close()
