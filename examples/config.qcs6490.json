@@ -1,0 +1,18 @@
+{
+  "camera": {
+    "source": { "kind": "realsense", "width": 640, "height": 480, "fps": 30 }
+  },
+  "pipeline": {
+    "name": "object_detection",
+    "settings": {
+      "detector": {
+        "model_path": "models/yolov8n_int8.tflite",
+        "backend": { "kind": "litert", "delegate": "qnn", "qnn_backend": "htp" }
+      },
+      "localization": {
+        "extrinsics": { "x_m": 0.25, "y_m": 0.0, "z_m": 0.45, "pitch_deg": 15.0 }
+      }
+    }
+  },
+  "network_tables": { "team": 5987 }
+}

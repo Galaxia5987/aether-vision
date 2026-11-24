@@ -1,0 +1,71 @@
+[project]
+name = "aether-vision"
+version = "0.2.0"
+description = "Depth-camera vision system: YOLO detection, depth deprojection and point-cloud clustering, published over NetworkTables."
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+    "fastapi>=0.115",
+    "numpy>=1.26",
+    "onnxruntime>=1.18",
+    "opencv-python-headless>=4.9",
+    "pydantic>=2.7",
+    "pyntcore>=2025.3.2",
+    "scipy>=1.12",
+    "uvicorn[standard]>=0.30",
+]
+
+[project.optional-dependencies]
+# Intel RealSense SDK. On aarch64 boards (e.g. QCS6490) without a PyPI wheel,
+# build librealsense with -DBUILD_PYTHON_BINDINGS=ON and install it into the venv.
+realsense = ["pyrealsense2>=2.55"]
+# LiteRT (TFLite) runtime, used with the Qualcomm QNN delegate on QCS6490.
+litert = ["ai-edge-litert>=1.0"]
+# File watching for `aether-vision run --reload`.
+reload = ["watchfiles>=0.21"]
+
+[project.scripts]
+aether-vision = "aether_vision.cli:main"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.10",
+    "pytest>=8.0",
+    "ruff>=0.5",
+    "httpx2>=2.0",
+    "watchfiles>=0.21",
+]
+
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/aether_vision"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "N", "SIM", "RUF", "ANN", "PT", "RET"]
+ignore = ["ANN401"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["ANN"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+mypy_path = "src"
+files = ["src", "tests"]
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["pyrealsense2.*", "ai_edge_litert.*", "tflite_runtime.*", "scipy.*", "watchfiles.*", "onnxruntime.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
