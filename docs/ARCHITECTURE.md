@@ -119,7 +119,8 @@ pipeline/{state, name, fps, latency_ms, restarts, last_error}
 pipeline/<pipeline name>/...                 pipeline telemetry (cleared on rebuild)
 pipeline/<pipeline name>/stages/<stage>/...  per-stage telemetry incl. latency_ms
 results/{timestamp_us, latency_ms, frame, count, has_target, pipeline, json,
-         targets_flat, targets_flat_fields, best/{x,y,z,distance,confidence,class_id,class_name}}
+         poses (struct:Pose3d[]), pose_class_ids, targets_flat, targets_flat_fields,
+         best/{pose (struct:Pose3d), has_pose, x, y, z, distance, confidence, class_id, class_name}}
 log/{messages (sendAll string), last_error}
 ```
 
@@ -127,6 +128,12 @@ log/{messages (sendAll string), last_error}
 `[class_id, confidence, x, y, z, distance, cx_px, cy_px, w_px, h_px] * N`. The
 positions are in the WPILib robot frame, using the camera extrinsics under
 `localization.extrinsics` in the pipeline settings; unknown values are NaN.
+
+`poses` / `best/pose` carry the same robot-frame positions as WPILib `Pose3d`
+structs (robotpy-wpimath), with identity rotation since orientation is not
+measured. Targets without a 3D position are left out of `poses`, so
+`pose_class_ids` is published alongside to identify each entry. All
+`results/*` values of a frame share the capture timestamp.
 
 ## 8. Frontend
 

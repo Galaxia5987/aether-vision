@@ -123,16 +123,41 @@ The main topics, under `/AetherVision`:
 | Topic | Type | Meaning |
 |---|---|---|
 | `results/has_target` | boolean | At least one target in the latest frame |
-| `results/best/x`, `y`, `z` | double | Position of the best target, meters, robot frame (x forward, y left, z up) |
+| `results/best/pose` | `Pose3d` struct | Best target, relative to the robot center |
+| `results/best/has_pose` | boolean | `results/best/pose` is valid for this frame (false when depth was unavailable) |
+| `results/poses` | `Pose3d[]` struct | Every target with a 3D position, best first |
+| `results/pose_class_ids` | int[] | Class id of each entry in `results/poses` |
+| `results/best/x`, `y`, `z` | double | Same position as `best/pose`, as plain numbers (NaN without depth) |
 | `results/best/distance` | double | Distance from the camera, meters |
 | `results/best/class_name` | string | What was detected |
 | `results/timestamp_us` | int | Capture time on the robot's clock, for latency compensation |
 | `results/targets_flat` | double[] | All targets, 10 numbers each (field names in `results/targets_flat_fields`) |
 | `status/heartbeat` | int | Increments twice a second while running |
 
-Set where the camera is mounted (`localization.extrinsics` in the pipeline
-settings) so positions are relative to the robot center. Positions are NaN
-when depth was unavailable.
+Positions use the WPILib robot frame (meters; x forward, y left, z up),
+measured from the robot center. Set where the camera is mounted
+(`localization.extrinsics` in the pipeline settings) for this to be accurate.
+Depth gives position but not orientation, so pose rotations are always zero.
+
+The pose topics are standard WPILib structs: robot code reads them directly as
+`Pose3d`, and AdvantageScope can display them in 3D. In Java:
+
+```java
+NetworkTable vision = NetworkTableInstance.getDefault().getTable("AetherVision/results");
+StructSubscriber<Pose3d> bestPose =
+    vision.getStructTopic("best/pose", Pose3d.struct).subscribe(new Pose3d());
+BooleanSubscriber hasPose = vision.getSubTable("best").getBooleanTopic("has_pose").subscribe(false);
+IntegerSubscriber captureTime = vision.getIntegerTopic("timestamp_us").subscribe(0);
+
+if (hasPose.get()) {
+  Pose3d robotRelative = bestPose.get();
+  // Field position: combine with where the robot was when the frame was captured.
+  double captureSeconds = captureTime.get() / 1e6;  // same clock as Timer.getFPGATimestamp()
+  poseEstimator.sampleAt(captureSeconds).ifPresent(robotPose -> {
+    Pose3d onField = new Pose3d(robotPose).transformBy(new Transform3d(new Pose3d(), robotRelative));
+  });
+}
+```
 
 ## Documentation
 
