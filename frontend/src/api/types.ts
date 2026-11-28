@@ -3,39 +3,19 @@
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue }
 export type JsonObject = { [key: string]: JsonValue }
 
-export interface ComponentStatus {
-  state: string
-  fps: number
-  last_error: string
-}
-
-export interface Status {
-  version: string
-  uptime_s: number
-  supervised: boolean
-  restart_pending: boolean
-  camera: ComponentStatus & { source: string }
-  pipeline: ComponentStatus & { name: string }
-  network_tables: { enabled: boolean; connected: boolean }
-}
-
-export type TelemetryValue = string | number | boolean | null | (string | number | boolean | null)[]
+export type TelemetryValue = string | number | boolean
 
 export interface Target {
   class_id: number
   class_name: string
   confidence: number
   box: [number, number, number, number]
-  position_camera: [number, number, number] | null
-  position_robot: [number, number, number] | null
-  extent_m: [number, number, number] | null
+  /** Robot frame (WPILib: x forward, y left, z up), meters. */
+  position: [number, number, number] | null
   distance_m: number | null
-  point_count: number
 }
 
 export interface PipelineResult {
-  pipeline: string
-  frame_number: number
   latency_ms: number
   targets: Target[]
 }
@@ -45,7 +25,6 @@ export interface LogEntry {
   timestamp: number
   level: string
   logger: string
-  thread: string
   message: string
 }
 
@@ -70,23 +49,9 @@ export interface JsonSchema {
   discriminator?: { propertyName: string; mapping?: Record<string, string> }
   $ref?: string
   $defs?: Record<string, JsonSchema>
-  'x-restart'?: boolean
-}
-
-export interface PipelineInfo {
-  description: string
-  required_streams: string[]
-  schema: JsonSchema
-  defaults: JsonObject
-}
-
-export interface SchemaBundle {
-  app: JsonSchema
-  pipelines: Record<string, PipelineInfo>
 }
 
 export type LiveMessage =
-  | { type: 'status'; data: Status }
-  | { type: 'telemetry'; full: boolean; values: Record<string, TelemetryValue>; removed: string[] }
+  | { type: 'telemetry'; values: Record<string, TelemetryValue> }
   | { type: 'result'; data: PipelineResult }
   | { type: 'logs'; entries: LogEntry[] }

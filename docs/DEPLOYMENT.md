@@ -18,7 +18,7 @@ works without root. Unplug and replug the camera afterwards.
 and restarts if it ever exits.
 
 Then open `http://<coprocessor>:5803`. Set your team number, camera mounting
-(`localization.extrinsics`), and model, then click **Save**.
+(`camera_mount`), and model, then click **Save**.
 
 ### Network
 
@@ -48,8 +48,8 @@ git pull
 scripts/install.sh            # add the same options you installed with
 ```
 
-Then click **Restart process** on the dashboard (or
-`sudo systemctl restart aether-vision`). A process restart reloads all code.
+Then click **Restart** on the dashboard (or
+`sudo systemctl restart aether-vision`). A restart reloads all code.
 `config/config.json` is kept.
 
 ## Qualcomm QCS6490
@@ -76,43 +76,27 @@ delegate.
    ```bash
    yolo export model=your_model.pt format=tflite int8=True imgsz=640
    ```
-   or download a pre-quantized `w8a8` model from Qualcomm AI Hub (YOLOv8
-   exports from AI Hub / the QIM SDK have separate `boxes`, `scores` and
-   `classes` outputs; the detector reads that format too). Copy it into `models/`.
-3. **Configure the detector** (see `examples/config.qcs6490.json`):
-   ```json
-   "detector": {
-     "model_path": "models/your_model_w8a8.tflite",
-     "labels_path": "/etc/labels/coco_labels.txt",
-     "backend": { "kind": "litert", "delegate": "qnn", "qnn_backend": "htp" }
-   }
-   ```
-   `labels_path` is only needed for models without embedded class names (AI
-   Hub models). If the delegate is not on the library path, set
-   `backend.delegate_path` to its full path.
-4. **Check** the `pipeline/object_detection/stages/detect/backend` telemetry
-   value on the dashboard. It should read `litert[qnn:htp]`, and
-   `stages/detect/latency_ms` should drop well below the CPU number.
+   or download a pre-quantized `w8a8` model from Qualcomm AI Hub (separate
+   `boxes`, `scores` and `classes` outputs; the detector reads both formats).
+   Copy it into `models/`.
+3. **Point the detector at it**: set `detector.model_path` (and `labels_path`,
+   one class name per line) on the dashboard. `detector.use_npu` is on by default.
+4. **Check** the `pipeline/backend` telemetry value on the dashboard. It should
+   read `npu`, and `pipeline/detect_ms` should be around 10 ms for a 640x640 model.
 
 If the delegate fails to load, the detector logs a warning and runs on the CPU
-(`backend` reads `litert[cpu]`). Set `backend.cpu_fallback` to `false` to make
-it an error instead; the pipeline then retries every few seconds.
-
-**Alternative:** an ONNX Runtime build with the QNN execution provider. Set
-`backend.providers` to `["QNNExecutionProvider", "CPUExecutionProvider"]`.
+(`pipeline/backend` reads `cpu`).
 
 ## Troubleshooting
 
 | Symptom | What to check |
 |---|---|
-| Camera state stays `reconnecting` | `rs-enumerate-devices` (librealsense tools) or `lsusb` shows the camera; udev rules installed (`ls /etc/udev/rules.d/99-realsense*`); use a USB 3 port and cable |
-| `No RealSense device connected` while plugged in | Replug after installing udev rules; another program may be using the camera |
-| Pipeline `error: missing streams: depth` | The camera has no depth (USB/mock without depth); use `passthrough` or enable depth |
-| Pipeline `build failed: Model file not found` | `detector.model_path` is relative to the install folder |
+| Camera state shows `error: ...` | `rs-enumerate-devices` (librealsense tools) or `lsusb` shows the camera; udev rules installed (`ls /etc/udev/rules.d/99-realsense*`); use a USB 3 port and cable; another program may be using the camera |
+| Pipeline `error: ...` about the model | `detector.model_path` is relative to the install folder |
 | NetworkTables shows `waiting` | Check `team` / `server_address` and that the robot is reachable (`ping 10.TE.AM.2`) |
-| Positions are NaN | Not enough valid depth in the box: the object is too close (< ~0.2 m), too far, or reflective/transparent. Try lowering `clustering.min_points` or enabling `filters.hole_filling` |
-| Positions are offset or rotated | Re-measure `localization.extrinsics`; `pitch_deg` is positive when tilted **down** |
-| Dashboard says "Frontend not built" | Re-run `scripts/install.sh` (it installs Node.js if needed); it was installed with `--no-frontend` or the build failed |
+| Positions are NaN | Not enough valid depth in the box: the object is too close (< ~0.2 m), too far (> 8 m), or reflective/transparent |
+| Positions are offset or rotated | Re-measure `camera_mount`; `pitch_deg` is positive when tilted **down** |
+| Dashboard page is a 404 | The frontend isn't built: re-run `scripts/install.sh` (it installs Node.js if needed) |
 | Installer can't reach the internet | It needs github.com, nodejs.org, pypi.org and your distro's package mirror. Behind a proxy, set `HTTPS_PROXY` |
 | `aether-vision: command not found` / `uv: command not found` | Open a new shell so `~/.local/bin` is on `PATH`, or use `.venv/bin/aether-vision` |
-| Low FPS | Check `stages/*/latency_ms` telemetry; use the NPU, a smaller model, `max_points`, or a larger `sample_stride` |
+| Low FPS | Check `pipeline/detect_ms` and `pipeline/localize_ms` telemetry; make sure `pipeline/backend` is `npu` |

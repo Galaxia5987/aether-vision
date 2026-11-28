@@ -11,9 +11,8 @@ Wants=network-online.target
 Type=simple
 User=@USER@
 WorkingDirectory=@REPO_DIR@
-# The built-in supervisor handles restart requests from the dashboard and
-# worker crashes; systemd restarts the supervisor itself if it ever exits.
-ExecStart=@REPO_DIR@/.venv/bin/aether-vision run
+# Restarts from the dashboard re-exec the process; systemd restarts it after a crash.
+ExecStart=@REPO_DIR@/.venv/bin/aether-vision
 Restart=always
 RestartSec=2
 KillSignal=SIGTERM

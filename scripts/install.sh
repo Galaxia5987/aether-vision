@@ -44,7 +44,6 @@ QCOM_PPA="ppa:ubuntu-qcom-iot/qcom-ppa"   # Qualcomm's PPA for other QCS6490 Ubu
 # ----------------------------------------------------------------- options
 WITH_FRONTEND=1
 WITH_REALSENSE=1
-WITH_LITERT=1
 WITH_DEV=0
 WITH_UDEV=1
 WITH_SYSTEM_PACKAGES=1
@@ -64,7 +63,6 @@ Usage: scripts/install.sh [options]
 Components (installed by default):
   --no-frontend          Skip the web dashboard (and Node.js)
   --no-realsense         Skip the Intel RealSense SDK (pyrealsense2) and its udev rules
-  --no-litert            Skip LiteRT (TFLite runtime used for the QCS6490 NPU)
   --no-udev              Skip the RealSense udev rules (needed to use the camera without root)
   --no-system-packages   Do not install OS packages (${APT_PACKAGES[*]}),
                          including the Qualcomm AI packages on a QCS6490
@@ -94,7 +92,6 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --no-frontend) WITH_FRONTEND=0 ;;
         --no-realsense) WITH_REALSENSE=0 ;;
-        --no-litert) WITH_LITERT=0 ;;
         --no-udev) WITH_UDEV=0 ;;
         --no-system-packages) WITH_SYSTEM_PACKAGES=0 ;;
         --qcs6490) QCS6490="yes" ;;
@@ -300,11 +297,8 @@ install_python() {
     (cd "${REPO_DIR}" && uv python install --quiet) || die "Could not install Python"
     local args=(sync --locked --quiet)
     [[ ${WITH_DEV} -eq 1 ]] || args+=(--no-dev)
-    if [[ ${WITH_LITERT} -eq 1 ]]; then
-        # On QCS6490 use the LiteRT release Qualcomm's delegate is validated with.
-        if [[ ${IS_QCS6490} -eq 1 ]]; then args+=(--extra qcs6490); else args+=(--extra litert); fi
-    fi
-    [[ ${WITH_DEV} -eq 1 ]] && args+=(--extra reload)
+    # On QCS6490 use the LiteRT release Qualcomm's delegate is validated with.
+    [[ ${IS_QCS6490} -eq 1 ]] && args+=(--extra qcs6490)
     (
         cd "${REPO_DIR}"
         if [[ ${WITH_REALSENSE} -eq 1 ]]; then
@@ -456,7 +450,6 @@ add_qualcomm_repository() {
 
 install_qualcomm_runtime() {
     # NPU inference needs libQnnTFLiteDelegate.so and the QNN HTP libraries.
-    [[ ${WITH_LITERT} -eq 1 ]] || return 0
     if [[ ${IS_QCS6490} -eq 0 ]]; then
         # Not a QCS6490: only report a runtime someone installed by hand.
         [[ "$(uname -s)" == "Linux" && "$(uname -m)" == "aarch64" ]] || return 0
@@ -507,7 +500,7 @@ write_mock_config() {
     fi
     mkdir -p "${REPO_DIR}/config"
     cp "${REPO_DIR}/examples/config.mock.json" "${target}"
-    ok "Wrote config/config.json (mock camera, local NetworkTables server)"
+    ok "Wrote config/config.json (mock camera)"
 }
 
 install_service() {
@@ -530,10 +523,10 @@ install_service() {
 
 verify() {
     step "Verifying"
-    local pipelines
-    pipelines="$("${REPO_DIR}/.venv/bin/aether-vision" pipelines | tr '\n' ' ')" \
+    local version
+    version="$("${REPO_DIR}/.venv/bin/aether-vision" --version)" \
         || die "aether-vision failed to start"
-    ok "aether-vision runs; pipelines: ${pipelines}"
+    ok "aether-vision ${version} runs"
     if [[ ${RUN_TESTS} -eq 1 ]]; then
         (cd "${REPO_DIR}" && uv run --locked pytest -q) || die "Tests failed"
         ok "Tests passed"
@@ -545,9 +538,9 @@ summary() {
     if [[ ${WITH_SERVICE} -eq 1 ]] && command -v systemctl >/dev/null 2>&1; then
         info "Running as a service:  systemctl status ${SERVICE_NAME}"
     elif PATH="${ORIGINAL_PATH}" command -v uv >/dev/null 2>&1; then
-        info "Start:          ${BOLD}uv run aether-vision run${RESET}"
+        info "Start:          ${BOLD}uv run aether-vision${RESET}"
     else
-        info "Start:          ${BOLD}.venv/bin/aether-vision run${RESET}"
+        info "Start:          ${BOLD}.venv/bin/aether-vision${RESET}"
         info "                (to use 'uv run', add ~/.local/bin to your PATH and open a new shell)"
     fi
     info "Dashboard:      http://$(hostname 2>/dev/null || echo localhost):5803"
@@ -557,8 +550,7 @@ summary() {
         info "Configuration:  config/config.json (written with defaults on first start)"
     fi
     if [[ ${IS_QCS6490} -eq 1 ]]; then
-        info "NPU:            put a quantized .tflite model in models/ and use the LiteRT"
-        info "                backend (see examples/config.qcs6490.json)"
+        info "NPU:            put a quantized .tflite model in models/ and set detector.model_path"
     fi
     if [[ ${#WARNINGS[@]} -gt 0 ]]; then
         echo
