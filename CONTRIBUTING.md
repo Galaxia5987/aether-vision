@@ -6,13 +6,13 @@
 scripts/install.sh --dev --mock-config
 ```
 
-This installs the development tools (pytest, mypy, ruff, watchfiles) and a
-mock-camera config, so no hardware is needed.
+This installs the development tools (pytest, mypy, ruff) and a mock-camera
+config, so no hardware is needed.
 
 ## Running
 
 ```bash
-uv run aether-vision run --reload      # backend; restarts on code changes
+uv run aether-vision                   # backend; the dashboard's Restart reloads code
 cd frontend && npm run dev             # dashboard with hot reload on :5173
 ```
 
@@ -34,19 +34,14 @@ cd frontend && npm run check
 
 ## Conventions
 
-- **Types everywhere.** `mypy --strict` must pass; avoid `Any` and untyped dicts.
-  Use frozen dataclasses or `ConfigModel` for data passed between components.
-- **Threads.** Components that block or run continuously subclass
-  `ServiceThread` / `PeriodicThread`. Data crosses threads only through
-  `LatestValue`, `TelemetryBus`, `ConfigStore`, or `StreamHub`; don't share
-  mutable state any other way.
-- **Prefer libraries** (numpy, scipy, OpenCV, pydantic) over hand-written
-  algorithms.
-- **Settings** belong in a `ConfigModel` with defaults, limits and a
-  description, so they show up in the dashboard.
-- **New pipelines:** see [docs/PIPELINES.md](docs/PIPELINES.md).
+- **Keep it small.** One module per concern (see the README). Add a setting
+  only when it needs to change between robots; otherwise use a constant.
+- **Types everywhere.** `mypy --strict` must pass.
+- **Threads.** The camera, pipeline and web server each run on one thread.
+  Data crosses threads through `Latest` (newest frame/result), `Telemetry`
+  and `ConfigStore`, all thread-safe; config objects are immutable.
+- **Prefer libraries** (numpy, scipy, OpenCV, wpimath, pydantic) over
+  hand-written algorithms.
 - **Dependencies:** add with `uv add <package>` (or `uv add --dev`) and commit
   `uv.lock`. Hardware-specific packages go in an optional extra in
   `pyproject.toml`.
-
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the parts fit together.

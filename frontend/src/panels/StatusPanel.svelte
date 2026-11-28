@@ -1,71 +1,58 @@
-<!-- Connection/health overview and restart controls. -->
+<!-- Connection/health overview and the restart button. -->
 <script lang="ts">
-    import { api, type ControlAction } from '../api/api'
-    import { connected, status } from '../api/live'
+    import { api } from '../api/api'
+    import { connected, telemetry } from '../api/live'
 
-    let pending = $state<ControlAction | null>(null)
+    let restarting = $state(false)
 
-    async function run(action: ControlAction): Promise<void> {
-        pending = action
+    async function restart(): Promise<void> {
+        restarting = true
         try {
-            await api.control(action)
+            await api.restart()
         } catch (error) {
             console.error(error)
         } finally {
-            setTimeout(() => (pending = null), 1000)
+            setTimeout(() => (restarting = false), 3000)
         }
     }
 
-    function stateClass(state: string | undefined): string {
+    function text(key: string): string {
+        return String($telemetry.get(key) ?? '—')
+    }
+
+    function stateClass(state: string): string {
         if (state === 'streaming' || state === 'running') return 'good'
-        if (state === 'error' || state === 'stopped') return 'bad'
+        if (state.startsWith('error') || state === 'stopped') return 'bad'
         return 'warn'
     }
 
-    function formatUptime(seconds: number): string {
-        const s = Math.floor(seconds)
-        return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m ${s % 60}s`
-    }
+    const camera = $derived(text('camera/state'))
+    const pipeline = $derived(text('pipeline/state'))
+    const ntConnected = $derived($telemetry.get('networktables/connected') === true)
 </script>
 
 <section class="status">
     <header>
         <span class="title">Aether Vision</span>
         <span class="dot" class:good={$connected} class:bad={!$connected}></span>
-        <span class="muted">{$connected ? 'live' : 'disconnected'}</span>
-        {#if $status}<span class="muted">v{$status.version} · up {formatUptime($status.uptime_s)}</span>{/if}
+        <span class="muted">{$connected ? 'live' : 'disconnected'} · v{text('version')}</span>
     </header>
-    {#if $status}
-        <div class="grid">
-            <span>Camera</span>
-            <span class={stateClass($status.camera.state)}>{$status.camera.state}</span>
-            <span class="muted">{$status.camera.source} · {$status.camera.fps.toFixed(1)} fps</span>
+    <div class="grid">
+        <span>Camera</span>
+        <span class={stateClass(camera)}>{camera}</span>
+        <span class="muted">{text('camera/fps')} fps</span>
 
-            <span>Pipeline</span>
-            <span class={stateClass($status.pipeline.state)}>{$status.pipeline.state}</span>
-            <span class="muted">{$status.pipeline.name} · {$status.pipeline.fps.toFixed(1)} fps</span>
+        <span>Pipeline</span>
+        <span class={stateClass(pipeline)}>{pipeline}</span>
+        <span class="muted">{text('pipeline/backend')} · {text('pipeline/fps')} fps</span>
 
-            <span>NetworkTables</span>
-            <span class={$status.network_tables.connected ? 'good' : 'warn'}>
-                {$status.network_tables.enabled ? ($status.network_tables.connected ? 'connected' : 'waiting') : 'disabled'}
-            </span>
-            <span class="muted">{$status.supervised ? 'supervised' : 'unsupervised'}</span>
-        </div>
-        {#if $status.camera.last_error && $status.camera.state !== 'streaming'}
-            <p class="error">Camera: {$status.camera.last_error}</p>
-        {/if}
-        {#if $status.pipeline.last_error}
-            <p class="error">Pipeline: {$status.pipeline.last_error}</p>
-        {/if}
-        {#if $status.restart_pending}
-            <p class="warn-box">Some saved settings take effect after a process restart.</p>
-        {/if}
-    {/if}
+        <span>NetworkTables</span>
+        <span class={ntConnected ? 'good' : 'warn'}>{ntConnected ? 'connected' : 'waiting'}</span>
+        <span class="muted"></span>
+    </div>
     <div class="buttons">
-        <button disabled={pending !== null} onclick={() => run('restart-pipeline')}>Restart pipeline</button>
-        <button disabled={pending !== null} onclick={() => run('restart-camera')}>Restart camera</button>
-        <button disabled={pending !== null} onclick={() => run('restart-process')} title="Reloads code from disk">
-            Restart process
+        <button disabled={restarting} onclick={restart} title="Restarts the process; reloads code from disk">
+            Restart
         </button>
     </div>
 </section>
@@ -113,21 +100,6 @@
     }
     .dot.good {
         background: #6c6;
-    }
-    .error,
-    .warn-box {
-        margin: 0;
-        padding: 4px 6px;
-        border-radius: 4px;
-        font-size: 12px;
-    }
-    .error {
-        background: #2a1616;
-        color: #f99;
-    }
-    .warn-box {
-        background: #2a2516;
-        color: #ec6;
     }
     .buttons {
         display: flex;

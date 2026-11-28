@@ -10,13 +10,13 @@
 <div class="panel">
     {#if $result}
         <p class="summary">
-            {$result.pipeline} · frame {$result.frame_number} · {$result.latency_ms.toFixed(1)} ms ·
+            {$result.latency_ms.toFixed(1)} ms ·
             {$result.targets.length} target(s)
         </p>
         <div class="scroll">
             <table>
                 <thead>
-                    <tr><th>#</th><th>class</th><th>conf</th><th>robot xyz (m)</th><th>dist (m)</th><th>points</th></tr>
+                    <tr><th>#</th><th>class</th><th>conf</th><th>robot xyz (m)</th><th>dist (m)</th></tr>
                 </thead>
                 <tbody>
                     {#each $result.targets as target, index (index)}
@@ -24,9 +24,8 @@
                             <td>{index}</td>
                             <td>{target.class_name}</td>
                             <td>{target.confidence.toFixed(2)}</td>
-                            <td>{vec(target.position_robot)}</td>
+                            <td>{vec(target.position)}</td>
                             <td>{target.distance_m === null ? '—' : target.distance_m.toFixed(2)}</td>
-                            <td>{target.point_count}</td>
                         </tr>
                     {/each}
                 </tbody>

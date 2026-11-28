@@ -1,7 +1,3 @@
 {
-  "camera": {
-    "source": { "kind": "mock", "width": 640, "height": 480, "fps": 30, "image_path": "" }
-  },
-  "pipeline": { "name": "object_detection", "settings": {} },
-  "network_tables": { "mode": "server" }
+  "camera": { "kind": "mock" }
 }

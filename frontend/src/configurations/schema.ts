@@ -116,25 +116,11 @@ export function defaultsFor(raw: JsonSchema, defs: Defs): JsonValue {
   }
 }
 
-/** Fill missing keys of `value` from `defaults`, recursively. */
-export function mergeDefaults(defaults: JsonValue, value: JsonValue | undefined): JsonValue {
-  if (value === undefined) return cloneJson(defaults)
-  if (isObject(defaults) && isObject(value)) {
-    const out: JsonObject = {}
-    for (const key of new Set([...Object.keys(defaults), ...Object.keys(value)])) {
-      out[key] = key in defaults ? mergeDefaults(defaults[key], value[key]) : value[key]
-    }
-    return out
-  }
-  return value
-}
-
 export function isObject(value: JsonValue | undefined): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-/** Label from the field itself (not a referenced model's title), flagged if restart-required. */
+/** Label from the field itself (not a referenced model's title). */
 export function labelFor(key: string, schema: JsonSchema): string {
-  const text = schema.$ref ? key.replaceAll('_', ' ') : (schema.title ?? key.replaceAll('_', ' '))
-  return schema['x-restart'] ? `${text} ⟳` : text
+  return schema.$ref ? key.replaceAll('_', ' ') : (schema.title ?? key.replaceAll('_', ' '))
 }

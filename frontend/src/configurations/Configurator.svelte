@@ -1,60 +1,36 @@
 <!-- Configuration editor generated from the backend's JSON schemas. -->
 <script lang="ts">
     import { onMount } from 'svelte'
-    import { Button, Folder, List, Pane } from 'svelte-tweakpane-ui'
+    import { Button, Folder, Pane } from 'svelte-tweakpane-ui'
     import SchemaForm from './SchemaForm.svelte'
     import { api } from '../api/api'
-    import type { JsonObject, SchemaBundle } from '../api/types'
-    import { cloneJson, isObject, labelFor, mergeDefaults, resolve, type Defs } from './schema'
+    import type { JsonObject, JsonSchema } from '../api/types'
+    import { isObject, labelFor, resolve, type Defs } from './schema'
 
-    let schema = $state.raw<SchemaBundle | null>(null)
+    let schema = $state.raw<JsonSchema | null>(null)
     let config = $state<JsonObject | null>(null)
-    let pipelineName = $state('')
-    let pipelineSettings = $state<JsonObject>({})
     let message = $state('')
     let saving = $state(false)
 
-    const appDefs: Defs = $derived(schema?.app.$defs ?? {})
-    const sections = $derived(
-        Object.entries(resolve(schema?.app ?? {}, appDefs).properties ?? {}).filter(([key]) => key !== 'pipeline'),
-    )
-    const pipelineInfo = $derived(schema?.pipelines[pipelineName])
-
-    function applyConfig(next: JsonObject): void {
-        config = next
-        const selection = isObject(next.pipeline) ? next.pipeline : {}
-        pipelineName = String(selection.name ?? '')
-        const info = schema?.pipelines[pipelineName]
-        const settings = isObject(selection.settings) ? selection.settings : {}
-        pipelineSettings = info ? (mergeDefaults(info.defaults, settings) as JsonObject) : settings
-    }
+    const defs: Defs = $derived(schema?.$defs ?? {})
+    const sections = $derived(Object.entries(resolve(schema ?? {}, defs).properties ?? {}))
 
     async function load(): Promise<void> {
         try {
             schema = await api.fetchSchema()
-            applyConfig(await api.fetchConfig())
+            config = await api.fetchConfig()
             message = ''
         } catch (error) {
             message = `Failed to load: ${String(error)}`
         }
     }
 
-    function selectPipeline(name: string): void {
-        if (name === pipelineName) return
-        pipelineName = name
-        const info = schema?.pipelines[name]
-        pipelineSettings = info ? cloneJson(info.defaults) : {}
-    }
-
     async function save(): Promise<void> {
         if (!config) return
         saving = true
         try {
-            const payload: JsonObject = {
-                ...plain(config),
-                pipeline: { name: pipelineName, settings: plain(pipelineSettings) },
-            }
-            applyConfig(await api.saveConfig(payload))
+            const payload: unknown = $state.snapshot(config as unknown)
+            config = await api.saveConfig(payload as JsonObject)
             message = 'Saved'
             setTimeout(() => (message = message === 'Saved' ? '' : message), 2000)
         } catch (error) {
@@ -62,12 +38,6 @@
         } finally {
             saving = false
         }
-    }
-
-    /** Plain (non-proxied) copy of reactive state, typed explicitly to avoid deep type expansion. */
-    function plain(value: JsonObject): JsonObject {
-        const copy: unknown = $state.snapshot(value as unknown)
-        return copy as JsonObject
     }
 
     function section(key: string): JsonObject {
@@ -81,31 +51,15 @@
 <div class="configurator">
     {#if schema && config}
         <Pane position="inline" title="Configuration">
-            <Folder title="Pipeline">
-                <List
-                    label="pipeline"
-                    options={Object.keys(schema.pipelines)}
-                    bind:value={() => pipelineName, selectPipeline}
-                />
-                {#if pipelineInfo}
-                    {#key pipelineName}
-                        <SchemaForm
-                            schema={pipelineInfo.schema}
-                            defs={pipelineInfo.schema.$defs ?? {}}
-                            value={pipelineSettings}
-                        />
-                    {/key}
-                {/if}
-            </Folder>
             {#each sections as [key, prop] (key)}
                 <Folder title={labelFor(key, prop)} expanded={false}>
-                    <SchemaForm schema={prop} defs={appDefs} value={section(key)} />
+                    <SchemaForm schema={prop} {defs} value={section(key)} />
                 </Folder>
             {/each}
             <Button title={saving ? 'Saving…' : 'Save'} disabled={saving} on:click={save} />
             <Button title="Reload" on:click={load} />
         </Pane>
-        <p class="hint">⟳ marks settings that restart the pipeline or process when changed.</p>
+        <p class="hint">Changes apply live; network and web settings restart the process.</p>
     {:else}
         <p class="hint">Loading configuration…</p>
     {/if}

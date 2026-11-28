@@ -1,8 +1,6 @@
 // REST client for the Aether Vision backend.
 
-import type { JsonObject, SchemaBundle, Status } from './types'
-
-export type ControlAction = 'restart-pipeline' | 'restart-camera' | 'restart-process'
+import type { JsonObject, JsonSchema } from './types'
 
 export class ApiError extends Error {
   constructor(
@@ -38,10 +36,9 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(config),
     }),
-  fetchSchema: (): Promise<SchemaBundle> => request('/api/schema'),
-  fetchStatus: (): Promise<Status> => request('/api/status'),
+  fetchSchema: (): Promise<JsonSchema> => request('/api/schema'),
   fetchStreams: (): Promise<string[]> => request('/api/streams'),
-  control: (action: ControlAction): Promise<{ status: string }> =>
-    request(`/api/control/${action}`, { method: 'POST' }),
+  /** Restarts the process (also picks up code changes). */
+  restart: (): Promise<{ status: string }> => request('/api/restart', { method: 'POST' }),
   streamUrl: (name: string): string => `/api/stream/${encodeURIComponent(name)}`,
 }
