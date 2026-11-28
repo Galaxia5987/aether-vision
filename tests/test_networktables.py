@@ -7,6 +7,7 @@ from collections.abc import Iterator
 
 import ntcore
 import pytest
+from wpimath.geometry import Pose3d
 
 from aether_vision.core.types import BoundingBox, Detection
 from aether_vision.networktables.results import FLAT_STRIDE, NetworkTablesResultSink
@@ -66,10 +67,25 @@ def test_result_sink_publishes_targets(instance: ntcore.NetworkTableInstance) ->
     payload = json.loads(instance.getStringTopic("/AV/results/json").subscribe("").get())
     assert payload["targets"][0]["distance_m"] == 2.0
 
+    pose_topic = instance.getStructTopic("/AV/results/best/pose", Pose3d)
+    assert pose_topic.getTypeString() == "struct:Pose3d"
+    best_pose = pose_topic.subscribe(Pose3d()).get()
+    assert (best_pose.x, best_pose.y, best_pose.z) == (2.0, 0.0, 0.5)
+    assert best_pose.rotation().angle == 0.0
+    assert instance.getBooleanTopic("/AV/results/best/has_pose").subscribe(False).get()
+    poses = instance.getStructArrayTopic("/AV/results/poses", Pose3d).subscribe([]).get()
+    assert [(p.x, p.z) for p in poses] == [(2.0, 0.5)]
+    assert list(
+        instance.getIntegerArrayTopic("/AV/results/pose_class_ids").subscribe([]).get()
+    ) == [2]
+
     time.sleep(0.01)
     sink.publish(
         PipelineResult("p", 8, capture_time_s=time.monotonic(), targets=(Target(target.detection),))
     )
     flat = list(instance.getDoubleArrayTopic("/AV/results/targets_flat").subscribe([]).get())
     assert math.isnan(flat[2])
+    # Without a 3D position the best target has no pose, and the pose array is empty.
+    assert not instance.getBooleanTopic("/AV/results/best/has_pose").subscribe(True).get()
+    assert instance.getStructArrayTopic("/AV/results/poses", Pose3d).subscribe([]).get() == []
     sink.close()

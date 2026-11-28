@@ -7,6 +7,7 @@ import math
 from typing import Final, Protocol, SupportsFloat, SupportsIndex, TypeVar
 
 import ntcore
+from wpimath.geometry import Pose3d, Rotation3d
 
 from aether_vision.networktables.timebase import monotonic_to_nt_us, to_server_time_us
 from aether_vision.pipeline.result import PipelineResult, Target
@@ -53,6 +54,17 @@ def flatten_target(target: Target) -> list[float]:
     ]
 
 
+def target_pose(target: Target) -> Pose3d | None:
+    """Robot-relative ``Pose3d`` of a localized target, or ``None`` without a 3D position.
+
+    Depth gives position only, so the rotation is always identity.
+    """
+    if target.position_robot is None:
+        return None
+    x, y, z = target.position_robot
+    return Pose3d(x, y, z, Rotation3d())
+
+
 class NetworkTablesResultSink:
     """Publishes every result atomically (all topics share the capture timestamp) and flushes."""
 
@@ -69,6 +81,8 @@ class NetworkTablesResultSink:
         self._flat = self._own(table.getDoubleArrayTopic("targets_flat").publish())
         self._flat_fields = self._own(table.getStringArrayTopic("targets_flat_fields").publish())
         self._pipeline = self._own(table.getStringTopic("pipeline").publish())
+        self._poses = self._own(table.getStructArrayTopic("poses", Pose3d).publish())
+        self._pose_class_ids = self._own(table.getIntegerArrayTopic("pose_class_ids").publish())
         best = table.getSubTable("best")
         self._best_x = self._own(best.getDoubleTopic("x").publish())
         self._best_y = self._own(best.getDoubleTopic("y").publish())
@@ -77,6 +91,8 @@ class NetworkTablesResultSink:
         self._best_confidence = self._own(best.getDoubleTopic("confidence").publish())
         self._best_class_id = self._own(best.getIntegerTopic("class_id").publish())
         self._best_class_name = self._own(best.getStringTopic("class_name").publish())
+        self._best_pose = self._own(best.getStructTopic("pose", Pose3d).publish())
+        self._best_has_pose = self._own(best.getBooleanTopic("has_pose").publish())
         self._flat_fields.set(list(FLAT_FIELDS))
 
     def publish(self, result: PipelineResult) -> None:
@@ -93,7 +109,15 @@ class NetworkTablesResultSink:
             flat.extend(flatten_target(target))
         self._flat.set(flat, stamp)
 
+        localized = [(t, pose) for t in result.targets if (pose := target_pose(t)) is not None]
+        self._poses.set([pose for _, pose in localized], stamp)
+        self._pose_class_ids.set([t.detection.class_id for t, _ in localized], stamp)
+
         best = result.best
+        best_pose = target_pose(best) if best is not None else None
+        self._best_has_pose.set(best_pose is not None, stamp)
+        if best_pose is not None:
+            self._best_pose.set(best_pose, stamp)
         if best is not None:
             pos = best.position_robot or (math.nan, math.nan, math.nan)
             self._best_x.set(pos[0], stamp)
