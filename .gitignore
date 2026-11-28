@@ -26,3 +26,11 @@ networktables.json*
 
 # Tools installed by scripts/install.sh
 /.tools/
+
+# Training notebook data and outputs
+/training/data/
+/training/runs/
+/training/dataset.zip
+/training/work/
+/models/
+*.pt

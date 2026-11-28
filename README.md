@@ -101,6 +101,30 @@ if (hasPose.get()) {
 }
 ```
 
+## Training a model
+
+Three steps, from images to an int8 model for the QCS6490 NPU:
+
+```bash
+# 1. Capture: preview and Record/Pause at http://<host>:5804 (works over SSH on the coprocessor)
+uv run --extra realsense training/capture.py --session lab_day1
+
+# 2. Label: edit training/classes.json (class -> text prompts), then
+uv run --extra realsense --group training training/annotate.py label   # YOLO-World auto-labels
+uv run --extra realsense --group training training/annotate.py review  # check and fix them at :5805
+uv run --extra realsense --group training training/annotate.py pack    # -> training/dataset.zip
+```
+
+The review page is a label editor: drag to draw a box, drag a box or its corners to move or
+resize it, 1–9 pick the class, Delete removes it, ctrl+z undoes. Images without labels are
+listed too, so you can skip `label` and annotate entirely by hand.
+
+3. Train on Kaggle: upload `training/dataset.zip` as a dataset, open
+   [training/train.ipynb](training/train.ipynb) there with a T4 GPU and internet on, and run all.
+   The notebook fine-tunes YOLO11, runs quantization-aware training, exports
+   `model_int8.tflite` + `labels.txt`, and checks the int8 accuracy against the float model.
+   The notebook doesn't depend on this project.
+
 ## Code
 
 ```
@@ -114,6 +138,7 @@ src/aether_vision/
   web.py            dashboard API and streams
   config.py         settings schema and config file
 frontend/           Svelte dashboard
+training/           capture, auto-annotation and review scripts; Kaggle training notebook
 ```
 
 See [Deployment](docs/DEPLOYMENT.md) for coprocessor setup and troubleshooting,
