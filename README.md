@@ -50,8 +50,11 @@ The installer checks each item and installs only what's missing:
    missing or too old (checksum-verified)
 5. **The dashboard**, built into `frontend/dist`
 6. **RealSense udev rules**, so the camera works without root
+7. **On a Qualcomm QCS6490** (e.g. RUBIK Pi 3, detected automatically): Qualcomm's
+   AI packages with the QNN delegate for the NPU, and the LiteRT version it is
+   validated with
 
-Steps 1 and 6 change the system and use `sudo` (you may be asked for your
+Steps 1, 6 and 7 change the system and use `sudo` (you may be asked for your
 password). Running it again is safe and takes a few seconds.
 
 | Option | What it does |
@@ -61,6 +64,7 @@ password). Running it again is safe and takes a few seconds.
 | `--dev` / `--test` | Installs development tools / also runs the test suite |
 | `--no-frontend`, `--no-realsense`, `--no-litert`, `--no-udev` | Skip a component |
 | `--no-system-packages` | Don't touch OS packages (install them yourself) |
+| `--qcs6490` / `--no-qcs6490` | Force or skip the QCS6490 setup |
 
 A typical robot coprocessor install is `scripts/install.sh --service`.
 Run `scripts/install.sh --help` for all options.
@@ -70,7 +74,7 @@ Run `scripts/install.sh --help` for all options.
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh     # if uv is missing
-uv sync --extra realsense --extra litert
+uv sync --extra realsense --extra litert     # QCS6490: --extra qcs6490 instead of litert
 (cd frontend && npm ci && npm run build)
 ```
 </details>

@@ -25,14 +25,19 @@ class OnnxRuntimeConfig(ConfigModel):
 class LiteRtConfig(ConfigModel):
     """LiteRT (TFLite). On QCS6490 the Qualcomm QNN delegate runs the model on the Hexagon NPU.
 
-    The delegate library ships with the Qualcomm AI Engine Direct SDK / Qualcomm
-    Linux image (``libQnnTFLiteDelegate.so``). Export a quantized TFLite model
-    (e.g. Ultralytics ``format=tflite, int8=True`` or Qualcomm AI Hub).
+    The delegate library (``libQnnTFLiteDelegate.so``) ships with Qualcomm's AI
+    packages (``scripts/install.sh`` installs them on a QCS6490). The NPU only runs
+    uint8/int8 quantized models; unsupported layers run on the CPU. Use a fully
+    integer-quantized TFLite model (e.g. Ultralytics ``format=tflite, int8=True``
+    or a pre-quantized ``w8a8`` model from Qualcomm AI Hub).
     """
 
     kind: Literal["litert"] = "litert"
     delegate: Literal["none", "qnn"] = "qnn"
     delegate_path: str = "libQnnTFLiteDelegate.so"
+    cpu_fallback: bool = Field(
+        True, description="Run on the CPU if the QNN delegate cannot be loaded"
+    )
     qnn_backend: Literal["htp", "gpu", "dsp"] = "htp"
     htp_performance_mode: Literal[
         "default", "sustained_high_performance", "burst", "high_performance", "power_saver"

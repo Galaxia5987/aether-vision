@@ -8,6 +8,8 @@
 #   - Node.js (local copy in .tools/ if the system one is missing or too old)
 #   - the web dashboard
 #   - RealSense udev rules (Linux)
+#   - on a Qualcomm QCS6490 (e.g. RUBIK Pi 3): Qualcomm's AI packages
+#     (QNN runtime + libQnnTFLiteDelegate.so) and the LiteRT release they are validated with
 # Optionally installs a systemd service. Safe to re-run: every step is idempotent.
 #
 # Usage: scripts/install.sh [options]      (run with --help for the list)
@@ -29,6 +31,16 @@ TOOLS_DIR="${REPO_DIR}/.tools"
 APT_PACKAGES=(curl ca-certificates tar xz-utils libusb-1.0-0 libudev1 udev)
 DNF_PACKAGES=(curl ca-certificates tar xz libusb1 systemd-libs systemd-udev)
 
+# Qualcomm AI packages for the QCS6490 NPU (the CAM/AI set from the RUBIK Pi 3
+# setup script, without its demo apps and desktop pieces).
+QCOM_APT_PACKAGES=(libqnn-dev qnn-tools tensorflow-lite-qcom-apps qcom-adreno1
+    qcom-fastcv-binaries-dev qcom-libdmabufheap-dev)
+RUBIKPI_REPO_URL="http://apt.thundercomm.com/rubik-pi-3"
+RUBIKPI_KEY_URL="https://thundercomm.s3.dualstack.ap-northeast-1.amazonaws.com/uploads/web/rubik-pi-3/tools/key.asc"
+RUBIKPI_LIST_PATH="/etc/apt/sources.list.d/rubikpi3.list"
+RUBIKPI_KEY_PATH="/etc/apt/trusted.gpg.d/rubikpi3.asc"
+QCOM_PPA="ppa:ubuntu-qcom-iot/qcom-ppa"   # Qualcomm's PPA for other QCS6490 Ubuntu boards
+
 # ----------------------------------------------------------------- options
 WITH_FRONTEND=1
 WITH_REALSENSE=1
@@ -39,6 +51,9 @@ WITH_SYSTEM_PACKAGES=1
 WITH_SERVICE=0
 WITH_MOCK_CONFIG=0
 RUN_TESTS=0
+QCS6490="auto"   # auto | yes | no
+IS_QCS6490=0
+IS_RUBIKPI=0
 
 usage() {
     cat <<USAGE
@@ -51,7 +66,12 @@ Components (installed by default):
   --no-realsense         Skip the Intel RealSense SDK (pyrealsense2) and its udev rules
   --no-litert            Skip LiteRT (TFLite runtime used for the QCS6490 NPU)
   --no-udev              Skip the RealSense udev rules (needed to use the camera without root)
-  --no-system-packages   Do not install OS packages (${APT_PACKAGES[*]})
+  --no-system-packages   Do not install OS packages (${APT_PACKAGES[*]}),
+                         including the Qualcomm AI packages on a QCS6490
+
+QCS6490 (detected automatically from the device tree):
+  --qcs6490              Treat this machine as a QCS6490 even if detection fails
+  --no-qcs6490           Ignore a detected QCS6490 (generic install, no Qualcomm packages)
 
 Optional:
   --dev                  Also install development tools (pytest, mypy, ruff)
@@ -77,6 +97,8 @@ while [[ $# -gt 0 ]]; do
         --no-litert) WITH_LITERT=0 ;;
         --no-udev) WITH_UDEV=0 ;;
         --no-system-packages) WITH_SYSTEM_PACKAGES=0 ;;
+        --qcs6490) QCS6490="yes" ;;
+        --no-qcs6490) QCS6490="no" ;;
         --dev) WITH_DEV=1 ;;
         --service) WITH_SERVICE=1 ;;
         --mock-config) WITH_MOCK_CONFIG=1 ;;
@@ -132,7 +154,53 @@ sha256_of() {
     fi
 }
 
+apt_missing() {  # apt_missing PKG...  ->  prints the packages that are not installed
+    local pkg
+    for pkg in "$@"; do
+        dpkg-query -W -f='${Status}' "${pkg}" 2>/dev/null | grep -q "install ok installed" \
+            || echo "${pkg}"
+    done
+}
+
+device_tree_matches() {  # device_tree_matches REGEX  ->  true if the board identity matches
+    local file
+    for file in /proc/device-tree/compatible /proc/device-tree/model /sys/devices/soc0/machine; do
+        [[ -r "${file}" ]] && tr '\0' '\n' < "${file}" | grep -qiE "$1" && return 0
+    done
+    return 1
+}
+
+find_qnn_delegate() {  # prints the path of libQnnTFLiteDelegate.so, if installed
+    local found=""
+    if command -v ldconfig >/dev/null 2>&1; then
+        found="$(ldconfig -p 2>/dev/null | grep -m1 -oE '/[^ ]*libQnnTFLiteDelegate\.so' || true)"
+    fi
+    if [[ -z "${found}" ]]; then
+        found="$(find /usr/lib /usr/local/lib /opt -name 'libQnnTFLiteDelegate.so' -print -quit \
+            2>/dev/null || true)"
+    fi
+    echo "${found}"
+}
+
 # ----------------------------------------------------------------- steps
+detect_qcs6490() {
+    case "${QCS6490}" in
+        yes) IS_QCS6490=1 ;;
+        no) IS_QCS6490=0 ;;
+        *)
+            [[ "$(uname -s)" == "Linux" && "$(uname -m)" == "aarch64" ]] \
+                && device_tree_matches 'qc[ms]6490' && IS_QCS6490=1
+            ;;
+    esac
+    [[ ${IS_QCS6490} -eq 1 ]] && device_tree_matches 'rubik[ _-]?pi' && IS_RUBIKPI=1
+    if [[ ${IS_QCS6490} -eq 1 ]]; then
+        local board="QCS6490"
+        [[ ${IS_RUBIKPI} -eq 1 ]] && board="QCS6490 (RUBIK Pi 3)"
+        ok "${board}: will set up NPU inference (LiteRT + QNN delegate)"
+    fi
+    return 0
+}
+
 check_platform() {
     step "Checking platform"
     local os arch
@@ -153,6 +221,7 @@ check_platform() {
         Darwin) warn "macOS is supported for development only (no QCS6490/udev/systemd)" ;;
         *) die "Unsupported OS: ${os}" ;;
     esac
+    detect_qcs6490
 }
 
 install_system_packages() {
@@ -167,11 +236,7 @@ install_system_packages() {
     fi
     local missing=()
     if command -v apt-get >/dev/null 2>&1; then
-        local pkg
-        for pkg in "${APT_PACKAGES[@]}"; do
-            dpkg-query -W -f='${Status}' "${pkg}" 2>/dev/null | grep -q "install ok installed" \
-                || missing+=("${pkg}")
-        done
+        mapfile -t missing < <(apt_missing "${APT_PACKAGES[@]}")
         if [[ ${#missing[@]} -gt 0 ]]; then
             info "Installing: ${missing[*]}"
             as_root env DEBIAN_FRONTEND=noninteractive apt-get update -qq
@@ -235,7 +300,10 @@ install_python() {
     (cd "${REPO_DIR}" && uv python install --quiet) || die "Could not install Python"
     local args=(sync --locked --quiet)
     [[ ${WITH_DEV} -eq 1 ]] || args+=(--no-dev)
-    [[ ${WITH_LITERT} -eq 1 ]] && args+=(--extra litert)
+    if [[ ${WITH_LITERT} -eq 1 ]]; then
+        # On QCS6490 use the LiteRT release Qualcomm's delegate is validated with.
+        if [[ ${IS_QCS6490} -eq 1 ]]; then args+=(--extra qcs6490); else args+=(--extra litert); fi
+    fi
     [[ ${WITH_DEV} -eq 1 ]] && args+=(--extra reload)
     (
         cd "${REPO_DIR}"
@@ -351,25 +419,81 @@ install_udev_rules() {
     fi
 }
 
-check_qnn_runtime() {
-    # The Qualcomm QNN runtime ships with Qualcomm Linux / the QAIRT SDK (account required),
-    # so it cannot be downloaded here. Only report whether it is present.
-    [[ ${WITH_LITERT} -eq 1 && "$(uname -s)" == "Linux" ]] || return 0
-    [[ "$(uname -m)" == "aarch64" ]] || return 0
-    step "Checking Qualcomm QNN runtime (NPU)"
-    local found=""
-    if command -v ldconfig >/dev/null 2>&1; then
-        found="$(ldconfig -p 2>/dev/null | grep -m1 -oE '/[^ ]*libQnnTFLiteDelegate\.so' || true)"
-    fi
-    if [[ -z "${found}" ]]; then
-        found="$(find /usr/lib /usr/local/lib /opt -name 'libQnnTFLiteDelegate.so' -print -quit \
-            2>/dev/null || true)"
-    fi
-    if [[ -n "${found}" ]]; then
-        ok "Found ${found}"
+add_qualcomm_repository() {
+    if [[ ${IS_RUBIKPI} -eq 1 ]]; then
+        # Thundercomm's RUBIK Pi 3 PPA (the one rubikpi-script/install_ppa_pkgs.sh adds).
+        local codename
+        codename="$(. /etc/os-release && echo "${VERSION_CODENAME:-}")"
+        if grep -rqs "apt.thundercomm.com/rubik-pi-3" /etc/apt/sources.list /etc/apt/sources.list.d/; then
+            info "RUBIK Pi 3 package repository already configured"
+            return 0
+        fi
+        [[ "${codename}" == "noble" ]] || {
+            warn "The RUBIK Pi 3 repository is for Ubuntu 24.04 (noble); this is '${codename}'"
+            return 1
+        }
+        info "Adding the RUBIK Pi 3 package repository"
+        local tmp
+        tmp="$(mktemp)"
+        download "${RUBIKPI_KEY_URL}" "${tmp}" || { rm -f "${tmp}"; return 1; }
+        as_root install -m 0644 "${tmp}" "${RUBIKPI_KEY_PATH}"
+        rm -f "${tmp}"
+        echo "deb ${RUBIKPI_REPO_URL}/${codename} ppa main" | as_root tee "${RUBIKPI_LIST_PATH}" >/dev/null
     else
-        warn "libQnnTFLiteDelegate.so not found; NPU inference needs the Qualcomm AI Engine Direct" \
-            "(QAIRT) runtime. CPU inference works without it. See docs/DEPLOYMENT.md"
+        if grep -rqs "ubuntu-qcom-iot" /etc/apt/sources.list /etc/apt/sources.list.d/; then
+            info "Qualcomm package repository already configured"
+            return 0
+        fi
+        info "Adding the Qualcomm package repository (${QCOM_PPA})"
+        if ! command -v add-apt-repository >/dev/null 2>&1; then
+            as_root env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+                software-properties-common >/dev/null || return 1
+        fi
+        as_root add-apt-repository -y "${QCOM_PPA}" >/dev/null || return 1
+    fi
+    return 0
+}
+
+install_qualcomm_runtime() {
+    # NPU inference needs libQnnTFLiteDelegate.so and the QNN HTP libraries.
+    [[ ${WITH_LITERT} -eq 1 ]] || return 0
+    if [[ ${IS_QCS6490} -eq 0 ]]; then
+        # Not a QCS6490: only report a runtime someone installed by hand.
+        [[ "$(uname -s)" == "Linux" && "$(uname -m)" == "aarch64" ]] || return 0
+        local found
+        found="$(find_qnn_delegate)"
+        [[ -n "${found}" ]] && ok "QNN delegate found: ${found}"
+        return 0
+    fi
+    step "Installing Qualcomm AI runtime (NPU)"
+    if [[ ${WITH_SYSTEM_PACKAGES} -eq 0 ]]; then
+        info "Package installation skipped (--no-system-packages)"
+    elif ! command -v apt-get >/dev/null 2>&1; then
+        info "No apt-get; install the Qualcomm AI Engine Direct (QAIRT) runtime yourself"
+    else
+        local missing=()
+        mapfile -t missing < <(apt_missing "${QCOM_APT_PACKAGES[@]}")
+        if [[ ${#missing[@]} -gt 0 ]]; then
+            if add_qualcomm_repository; then
+                info "Installing: ${missing[*]}"
+                as_root env DEBIAN_FRONTEND=noninteractive apt-get update -qq \
+                    && as_root env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+                        "${missing[@]}" >/dev/null \
+                    || warn "Could not install the Qualcomm AI packages (${missing[*]})"
+            else
+                warn "Could not add the Qualcomm package repository"
+            fi
+        else
+            ok "Qualcomm AI packages present"
+        fi
+    fi
+    local found
+    found="$(find_qnn_delegate)"
+    if [[ -n "${found}" ]]; then
+        ok "QNN delegate: ${found}"
+    else
+        warn "libQnnTFLiteDelegate.so not found; the detector will fall back to the CPU." \
+            "On a RUBIK Pi 3 run rubikpi-script's install_ppa_pkgs.sh. See docs/DEPLOYMENT.md"
     fi
 }
 
@@ -432,6 +556,10 @@ summary() {
     else
         info "Configuration:  config/config.json (written with defaults on first start)"
     fi
+    if [[ ${IS_QCS6490} -eq 1 ]]; then
+        info "NPU:            put a quantized .tflite model in models/ and use the LiteRT"
+        info "                backend (see examples/config.qcs6490.json)"
+    fi
     if [[ ${#WARNINGS[@]} -gt 0 ]]; then
         echo
         echo "${YELLOW}Warnings:${RESET}"
@@ -445,7 +573,7 @@ ensure_uv
 install_python
 build_frontend
 install_udev_rules
-check_qnn_runtime
+install_qualcomm_runtime
 write_mock_config
 install_service
 verify

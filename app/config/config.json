@@ -1,0 +1,20 @@
+{
+    "input": {
+        "type": "UsbCamera",
+        "resolution": {
+            "width": 640,
+            "height": 480
+        },
+        "colorStream": {
+            "enabled": true
+        }
+    },
+    "pipeline": {
+        "type": "EmptyPipeline",
+        "executablePath": "pipeline/cmake-build-debug/pipeline"
+    },
+    "networkTable": {
+        "server": "10.59.87.2",
+        "table": "AetherVision"
+    }
+}

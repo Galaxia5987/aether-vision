@@ -5,6 +5,8 @@ Supports Ultralytics-style detection heads:
 * ``channels_first`` — ``[1, 4 + num_classes, num_anchors]`` (YOLOv8/v11 ONNX/TFLite)
 * ``anchors_first``  — ``[1, num_anchors, 4 + num_classes]`` (transposed exports)
 * ``end2end``        — ``[1, max_det, 6]`` with ``x1, y1, x2, y2, score, class`` (NMS in graph)
+* ``split``          — three outputs ``boxes [1, N, 4]`` (x1, y1, x2, y2), ``scores [1, N]``
+  and ``classes [1, N]``, as in Qualcomm AI Hub / QIM SDK quantized YOLOv8 exports
 """
 
 from __future__ import annotations
@@ -31,7 +33,7 @@ _log = logging.getLogger(__name__)
 _PAD_VALUE: Final = 114
 _DEFAULT_INPUT_SIZE: Final = 640
 
-OutputLayout = Literal["auto", "channels_first", "anchors_first", "end2end"]
+OutputLayout = Literal["auto", "channels_first", "anchors_first", "end2end", "split"]
 
 
 class YoloConfig(ConfigModel):
@@ -45,6 +47,11 @@ class YoloConfig(ConfigModel):
     )
     class_names: tuple[str, ...] = Field(
         (), description="Overrides names embedded in the model", json_schema_extra=RESTART_REQUIRED
+    )
+    labels_path: str = Field(
+        "",
+        description="Text file with one class name per line (e.g. /etc/labels/coco_labels.txt)",
+        json_schema_extra=RESTART_REQUIRED,
     )
     confidence_threshold: float = Field(0.4, ge=0.0, le=1.0)
     iou_threshold: float = Field(0.45, ge=0.0, le=1.0)
@@ -110,6 +117,42 @@ def parse_class_names(metadata: dict[str, str]) -> dict[int, str]:
     return {}
 
 
+def load_labels(path: Path) -> dict[int, str]:
+    """Read a labels file: one class name per line, line number = class id."""
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError as error:
+        raise InferenceError(f"Cannot read labels file {path}: {error}") from error
+    return {i: line.strip() for i, line in enumerate(lines) if line.strip()}
+
+
+@dataclass(frozen=True, slots=True)
+class _SplitOutputs:
+    """Output indices of a ``split`` model."""
+
+    boxes: int
+    scores: int
+    classes: int
+
+
+def _split_outputs(outputs: tuple[TensorSpec, ...]) -> _SplitOutputs | None:
+    """Find the boxes/scores/classes outputs; ``None`` if the model is not split."""
+    if len(outputs) < 3:
+        return None
+    boxes = [i for i, o in enumerate(outputs) if len(o.shape) == 3 and o.shape[2] == 4]
+    flat = [i for i, o in enumerate(outputs) if len(o.shape) == 2]
+    if len(boxes) != 1 or len(flat) < 2:
+        return None
+
+    def named(*words: str) -> int | None:
+        return next((i for i in flat if any(w in outputs[i].name.lower() for w in words)), None)
+
+    scores, classes = named("score", "conf"), named("class", "label")
+    if scores is None or classes is None or scores == classes:
+        scores, classes = flat[0], flat[1]  # boxes, scores, classes order
+    return _SplitOutputs(boxes[0], scores, classes)
+
+
 @dataclass(frozen=True, slots=True)
 class _InputGeometry:
     spec: TensorSpec
@@ -152,6 +195,7 @@ class YoloDetector:
         self._geometry: _InputGeometry | None = None
         self._class_names: dict[int, str] = {}
         self._layout: OutputLayout = config.output_layout
+        self._split: _SplitOutputs | None = None
 
     @property
     def backend_description(self) -> str:
@@ -169,8 +213,18 @@ class YoloDetector:
         self._geometry = _input_geometry(self._backend.inputs[0], metadata)
         if self._config.class_names:
             self._class_names = dict(enumerate(self._config.class_names))
+        elif self._config.labels_path:
+            self._class_names = load_labels(Path(self._config.labels_path))
         else:
             self._class_names = parse_class_names(metadata)
+        if self._layout in ("auto", "split"):
+            self._split = _split_outputs(self._backend.outputs)
+            if self._split is not None:
+                self._layout = "split"
+            elif self._layout == "split":
+                raise InferenceError(
+                    "output_layout 'split' needs boxes, scores and classes outputs"
+                )
         if self._layout == "auto" and metadata.get("end2end", "").lower() == "true":
             self._layout = "end2end"
         _log.info(
@@ -194,8 +248,8 @@ class YoloDetector:
         cfg = settings or self._config
         tensor, box_map = self._preprocess(image, geometry)
         outputs = self._backend.run([tensor])
-        raw = self._dequantize(outputs[0], self._backend.outputs[0])
-        return self._postprocess(raw, box_map, geometry, cfg, image.shape[1], image.shape[0])
+        decoded = self._decode(outputs)
+        return self._postprocess(*decoded, box_map, geometry, cfg, image.shape[1], image.shape[0])
 
     def _preprocess(
         self, image: ColorImage, geometry: _InputGeometry
@@ -240,15 +294,20 @@ class YoloDetector:
             return "end2end"
         return "channels_first" if rows < cols else "anchors_first"
 
-    def _postprocess(
-        self,
-        raw: npt.NDArray[np.float32],
-        box_map: Letterbox,
-        geometry: _InputGeometry,
-        cfg: YoloConfig,
-        image_width: int,
-        image_height: int,
-    ) -> list[Detection]:
+    def _decode(
+        self, outputs: list[np.ndarray]
+    ) -> tuple[npt.NDArray[np.float32], npt.NDArray[np.float32], npt.NDArray[np.int64], bool]:
+        """Return ``(boxes_xyxy, confidences, class_ids, needs_nms)`` in model-input units."""
+        specs = self._backend.outputs
+        split = self._split
+        if split is not None:
+            boxes = self._dequantize(outputs[split.boxes], specs[split.boxes])[0]
+            scores = self._dequantize(outputs[split.scores], specs[split.scores])[0]
+            # Class ids are plain integers even in quantized models.
+            classes = np.asarray(outputs[split.classes])[0].astype(np.int64)
+            return boxes, scores, classes, True
+
+        raw = self._dequantize(outputs[0], specs[0])
         if raw.ndim == 3:
             raw = raw[0]
         if raw.ndim != 2:
@@ -256,19 +315,29 @@ class YoloDetector:
         layout = self._resolve_layout(raw)
 
         if layout == "end2end":
-            boxes_xyxy = raw[:, :4]
-            confidences = raw[:, 4]
-            class_ids = raw[:, 5].astype(np.int64)
-        else:
-            rows = raw.T if layout == "channels_first" else raw
-            if rows.shape[1] < 5:
-                raise InferenceError(f"YOLO output has too few channels: {rows.shape}")
-            scores = rows[:, 4:]
-            class_ids = np.argmax(scores, axis=1)
-            confidences = scores[np.arange(scores.shape[0]), class_ids]
-            centers, half_sizes = rows[:, :2], rows[:, 2:4] / 2.0
-            boxes_xyxy = np.hstack((centers - half_sizes, centers + half_sizes))
+            return raw[:, :4], raw[:, 4], raw[:, 5].astype(np.int64), False
+        rows = raw.T if layout == "channels_first" else raw
+        if rows.shape[1] < 5:
+            raise InferenceError(f"YOLO output has too few channels: {rows.shape}")
+        scores = rows[:, 4:]
+        class_ids = np.argmax(scores, axis=1)
+        confidences = scores[np.arange(scores.shape[0]), class_ids]
+        centers, half_sizes = rows[:, :2], rows[:, 2:4] / 2.0
+        boxes_xyxy = np.hstack((centers - half_sizes, centers + half_sizes))
+        return boxes_xyxy, confidences, class_ids, True
 
+    def _postprocess(
+        self,
+        boxes_xyxy: npt.NDArray[np.float32],
+        confidences: npt.NDArray[np.float32],
+        class_ids: npt.NDArray[np.int64],
+        needs_nms: bool,
+        box_map: Letterbox,
+        geometry: _InputGeometry,
+        cfg: YoloConfig,
+        image_width: int,
+        image_height: int,
+    ) -> list[Detection]:
         keep = confidences >= cfg.confidence_threshold
         if cfg.class_filter:
             keep &= np.isin(class_ids, np.asarray(cfg.class_filter, dtype=np.int64))
@@ -287,10 +356,10 @@ class YoloDetector:
         boxes_xyxy = box_map.to_image(boxes_xyxy)
 
         order: list[int]
-        if layout == "end2end":
-            order = [int(i) for i in np.argsort(-confidences)[: cfg.max_detections]]
-        else:
+        if needs_nms:
             order = self._nms(boxes_xyxy, confidences, class_ids, cfg)
+        else:
+            order = [int(i) for i in np.argsort(-confidences)[: cfg.max_detections]]
 
         detections: list[Detection] = []
         for index in order:

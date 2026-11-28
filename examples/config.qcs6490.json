@@ -6,7 +6,8 @@
     "name": "object_detection",
     "settings": {
       "detector": {
-        "model_path": "models/yolov8n_int8.tflite",
+        "model_path": "models/yolov8_det_w8a8.tflite",
+        "labels_path": "/etc/labels/coco_labels.txt",
         "backend": { "kind": "litert", "delegate": "qnn", "qnn_backend": "htp" }
       },
       "localization": {

@@ -78,8 +78,9 @@ depth. Set `image_path` to a photo to test YOLO on real images.
 | `max_detections` | `50` | Maximum detections per frame |
 | `class_filter` | `[]` | Keep only these class ids; empty keeps all |
 | `class_names` ⟳ | `[]` | Override the class names stored in the model |
+| `labels_path` ⟳ | `""` | Text file with one class name per line, for models without names (e.g. AI Hub) |
 | `box_units` | `auto` | `normalized` for models that output 0–1 boxes (some TFLite exports) |
-| `output_layout` ⟳ | `auto` | Model output format; `auto` detects YOLOv8/v11 and end-to-end exports |
+| `output_layout` ⟳ | `auto` | Model output format; `auto` detects YOLOv8/v11, end-to-end and split (`boxes`/`scores`/`classes`, AI Hub) exports |
 
 #### Localization (3D position)
 
@@ -140,6 +141,7 @@ Setting: `overlay` (draw the frame number).
 |---|---|---|
 | `delegate` | `qnn` | `qnn` for the NPU, `none` for CPU only |
 | `delegate_path` | `libQnnTFLiteDelegate.so` | Full path if not on the library path |
+| `cpu_fallback` | `true` | Run on the CPU (with a warning) if the delegate can't be loaded |
 | `qnn_backend` | `htp` | `htp` (NPU), `gpu`, or `dsp` |
 | `htp_performance_mode` | `burst` | `burst`, `high_performance`, `sustained_high_performance`, `default`, `power_saver` |
 | `num_threads` | `4` | CPU threads for operations the NPU can't run |

@@ -19,8 +19,11 @@ dependencies = [
 # Intel RealSense SDK. On aarch64 boards (e.g. QCS6490) without a PyPI wheel,
 # build librealsense with -DBUILD_PYTHON_BINDINGS=ON and install it into the venv.
 realsense = ["pyrealsense2>=2.55"]
-# LiteRT (TFLite) runtime, used with the Qualcomm QNN delegate on QCS6490.
+# LiteRT (TFLite) runtime for CPU inference on any machine.
 litert = ["ai-edge-litert>=1.0"]
+# LiteRT for the QCS6490 NPU: libQnnTFLiteDelegate.so from Qualcomm's packages
+# is validated with this release (RUBIK Pi 3 LiteRT guide). Use instead of `litert`.
+qcs6490 = ["ai-edge-litert==1.3.0"]
 # File watching for `aether-vision run --reload`.
 reload = ["watchfiles>=0.21"]
 
@@ -35,6 +38,9 @@ dev = [
     "httpx2>=2.0",
     "watchfiles>=0.21",
 ]
+
+[tool.uv]
+conflicts = [[{ extra = "litert" }, { extra = "qcs6490" }]]
 
 [build-system]
 requires = ["hatchling>=1.24"]

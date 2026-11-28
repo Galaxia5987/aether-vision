@@ -81,6 +81,7 @@ class LiteRtBackend(InferenceBackend):
             raise InferenceError(f"Model file not found: {self._model_path}")
         interpreter_cls, load_delegate = _import_interpreter()
         delegates: list[Any] = []
+        self._delegated = False
         if self._config.delegate == "qnn":
             try:
                 delegates.append(
@@ -88,9 +89,10 @@ class LiteRtBackend(InferenceBackend):
                 )
                 self._delegated = True
             except (OSError, ValueError, RuntimeError) as error:
-                raise InferenceError(
-                    f"Cannot load QNN delegate {self._config.delegate_path}: {error}"
-                ) from error
+                message = f"Cannot load QNN delegate {self._config.delegate_path}: {error}"
+                if not self._config.cpu_fallback:
+                    raise InferenceError(message) from error
+                _log.warning("%s; running on the CPU instead", message)
         try:
             interpreter = interpreter_cls(
                 model_path=str(self._model_path),

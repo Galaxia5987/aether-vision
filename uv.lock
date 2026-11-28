@@ -2,10 +2,18 @@ version = 1
 revision = 3
 requires-python = ">=3.11, <3.14"
 resolution-markers = [
-    "python_full_version >= '3.13'",
-    "python_full_version == '3.12.*'",
-    "python_full_version < '3.12'",
+    "python_full_version >= '3.12' and extra != 'extra-13-aether-vision-litert' and extra == 'extra-13-aether-vision-qcs6490'",
+    "python_full_version < '3.12' and extra != 'extra-13-aether-vision-litert' and extra == 'extra-13-aether-vision-qcs6490'",
+    "python_full_version >= '3.13' and extra == 'extra-13-aether-vision-litert' and extra != 'extra-13-aether-vision-qcs6490'",
+    "python_full_version == '3.12.*' and extra == 'extra-13-aether-vision-litert' and extra != 'extra-13-aether-vision-qcs6490'",
+    "python_full_version < '3.12' and extra == 'extra-13-aether-vision-litert' and extra != 'extra-13-aether-vision-qcs6490'",
+    "python_full_version >= '3.12' and extra != 'extra-13-aether-vision-litert' and extra != 'extra-13-aether-vision-qcs6490'",
+    "python_full_version < '3.12' and extra != 'extra-13-aether-vision-litert' and extra != 'extra-13-aether-vision-qcs6490'",
 ]
+conflicts = [[
+    { package = "aether-vision", extra = "litert" },
+    { package = "aether-vision", extra = "qcs6490" },
+]]
 
 [[package]]
 name = "aether-vision"
@@ -13,20 +21,23 @@ version = "0.2.0"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
-    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "numpy", version = "2.5.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12' or (extra == 'extra-13-aether-vision-litert' and extra == 'extra-13-aether-vision-qcs6490')" },
+    { name = "numpy", version = "2.5.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12' or (extra == 'extra-13-aether-vision-litert' and extra == 'extra-13-aether-vision-qcs6490')" },
     { name = "onnxruntime" },
     { name = "opencv-python-headless" },
     { name = "pydantic" },
     { name = "pyntcore" },
-    { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "scipy", version = "1.18.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12' or (extra == 'extra-13-aether-vision-litert' and extra == 'extra-13-aether-vision-qcs6490')" },
+    { name = "scipy", version = "1.18.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12' or (extra == 'extra-13-aether-vision-litert' and extra == 'extra-13-aether-vision-qcs6490')" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
 [package.optional-dependencies]
 litert = [
-    { name = "ai-edge-litert" },
+    { name = "ai-edge-litert", version = "2.3.0", source = { registry = "https://pypi.org/simple" } },
+]
+qcs6490 = [
+    { name = "ai-edge-litert", version = "1.3.0", source = { registry = "https://pypi.org/simple" } },
 ]
 realsense = [
     { name = "pyrealsense2" },
@@ -47,6 +58,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "ai-edge-litert", marker = "extra == 'litert'", specifier = ">=1.0" },
+    { name = "ai-edge-litert", marker = "extra == 'qcs6490'", specifier = "==1.3.0" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "numpy", specifier = ">=1.26" },
     { name = "onnxruntime", specifier = ">=1.18" },
@@ -58,7 +70,7 @@ requires-dist = [
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30" },
     { name = "watchfiles", marker = "extra == 'reload'", specifier = ">=0.21" },
 ]
-provides-extras = ["realsense", "litert", "reload"]
+provides-extras = ["realsense", "litert", "qcs6490", "reload"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -71,14 +83,44 @@ dev = [
 
 [[package]]
 name = "ai-edge-litert"
+version = "1.3.0"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version >= '3.12'",
+    "python_full_version < '3.12'",
+]
+dependencies = [
+    { name = "backports-strenum" },
+    { name = "flatbuffers" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version < '3.12' and extra == 'extra-13-aether-vision-qcs6490') or (extra == 'extra-13-aether-vision-litert' and extra == 'extra-13-aether-vision-qcs6490')" },
+    { name = "numpy", version = "2.5.5", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.12' and extra == 'extra-13-aether-vision-qcs6490') or (extra == 'extra-13-aether-vision-litert' and extra == 'extra-13-aether-vision-qcs6490')" },
+    { name = "tqdm" },
+    { name = "typing-extensions" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5c/52/74b2938a047cc58e1fa15f4e0ceba11b3fd5c871330dde6937c04d3a8093/ai_edge_litert-1.3.0-cp311-cp311-macosx_12_0_arm64.whl", hash = "sha256:2a1c3b7b87c7b35512f96827d085506d2575a7d077d5c87ded59e40158418f57", size = 5099155, upload-time = "2025-05-19T22:42:29.057Z" },
+    { url = "https://files.pythonhosted.org/packages/a1/66/78d65fb9b705109a10ee8e4e11e9db380f9e394075ddaa1dbd85d4bbec85/ai_edge_litert-1.3.0-cp311-cp311-manylinux_2_17_aarch64.whl", hash = "sha256:161a3336dd89f37be291b4061b25c8f8e772dc8e0797aa4cdf03e36cc980fe85", size = 6698870, upload-time = "2025-05-19T22:36:27.619Z" },
+    { url = "https://files.pythonhosted.org/packages/f3/86/699202912154ac6195f94f73cd10757aa112e1c66ef7a175d42ace96ec1b/ai_edge_litert-1.3.0-cp311-cp311-manylinux_2_17_x86_64.whl", hash = "sha256:cfc43125652d976f56fe3d7b0f3bcb28b7917812b4b94a10b673f7e63553c606", size = 11219692, upload-time = "2025-05-19T22:35:09.817Z" },
+    { url = "https://files.pythonhosted.org/packages/42/f9/4f604a0df117895d399cc3b4508054f4d4a80234fba8104bac2ba6b41a68/ai_edge_litert-1.3.0-cp312-cp312-macosx_12_0_arm64.whl", hash = "sha256:3fb5eeb9bda506f1c25e0ba06721070dd021e490cb272b1a869bbca9c546bf25", size = 5097059, upload-time = "2025-05-19T22:42:30.539Z" },
+    { url = "https://files.pythonhosted.org/packages/11/2e/5aab3c644cb1a9a77498852ad7e4c36197961f03c6376e04f407ba707ec9/ai_edge_litert-1.3.0-cp312-cp312-manylinux_2_17_aarch64.whl", hash = "sha256:4e92616096c0db4c328dc97baa742bc0271f77879198c0dfed0805ae18584998", size = 6698700, upload-time = "2025-05-19T22:36:29.601Z" },
+    { url = "https://files.pythonhosted.org/packages/17/99/528cb51c01190500120237f59c1015124d66be51c9db730fcbd431fb9c27/ai_edge_litert-1.3.0-cp312-cp312-manylinux_2_17_x86_64.whl", hash = "sha256:0ea9b2fe5de9e7a00c7c6c5f79bdd1ace39c933a576751621020f7eb0b8ccca3", size = 11220335, upload-time = "2025-05-19T22:35:11.614Z" },
+]
+
+[[package]]
+name = "ai-edge-litert"
 version = "2.3.0"
 source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version >= '3.13'",
+    "python_full_version == '3.12.*'",
+    "python_full_version < '3.12'",
+]
 dependencies = [
     { name = "backports-strenum" },
     { name = "flatbuffers" },
     { name = "ml-dtypes" },
-    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "numpy", version = "2.5.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version < '3.12' and extra == 'extra-13-aether-vision-litert') or (extra == 'extra-13-aether-vision-litert' and extra == 'extra-13-aether-vision-qcs6490')" },
+    { name = "numpy", version = "2.5.5", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.12' and extra == 'extra-13-aether-vision-litert') or (extra == 'extra-13-aether-vision-litert' and extra == 'extra-13-aether-vision-qcs6490')" },
     { name = "protobuf" },
     { name = "tqdm" },
     { name = "typing-extensions" },
@@ -300,12 +342,12 @@ name = "httpx2"
 version = "2.16.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "anyio", marker = "sys_platform != 'emscripten'" },
-    { name = "httpcore2", marker = "sys_platform != 'emscripten'" },
-    { name = "httpx2-jsfetch", marker = "python_full_version >= '3.12' and sys_platform == 'emscripten'" },
+    { name = "anyio", marker = "sys_platform != 'emscripten' or (extra == 'extra-13-aether-vision-litert' and extra == 'extra-13-aether-vision-qcs6490')" },
+    { name = "httpcore2", marker = "sys_platform != 'emscripten' or (extra == 'extra-13-aether-vision-litert' and extra == 'extra-13-aether-vision-qcs6490')" },
+    { name = "httpx2-jsfetch", marker = "(python_full_version >= '3.12' and sys_platform == 'emscripten') or (python_full_version < '3.12' and extra == 'extra-13-aether-vision-litert' and extra == 'extra-13-aether-vision-qcs6490') or (sys_platform != 'emscripten' and extra == 'extra-13-aether-vision-litert' and extra == 'extra-13-aether-vision-qcs6490')" },
     { name = "idna" },
-    { name = "truststore", marker = "sys_platform != 'emscripten'" },
-    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
+    { name = "truststore", marker = "sys_platform != 'emscripten' or (extra == 'extra-13-aether-vision-litert' and extra == 'extra-13-aether-vision-qcs6490')" },
+    { name = "typing-extensions", marker = "python_full_version < '3.13' or (extra == 'extra-13-aether-vision-litert' and extra == 'extra-13-aether-vision-qcs6490')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/1c/77/6515121dc5ac3c743ad1bff5afe635bcd1a3f23cc40db3c5c89f7d02917d/httpx2-2.16.2.tar.gz", hash = "sha256:748b615678f07d8e3b183efe81ad13b655ca88bfc56ce4589219b2d442860574", size = 103370, upload-time = "2026-11-16T10:12:20.49Z" }
 wheels = [
@@ -401,8 +443,8 @@ name = "ml-dtypes"
 version = "0.7.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "numpy", version = "2.5.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version < '3.12' and extra == 'extra-13-aether-vision-litert') or (extra == 'extra-13-aether-vision-litert' and extra == 'extra-13-aether-vision-qcs6490')" },
+    { name = "numpy", version = "2.5.5", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.12' and extra == 'extra-13-aether-vision-litert') or (extra == 'extra-13-aether-vision-litert' and extra == 'extra-13-aether-vision-qcs6490')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/bc/2d/4ce5532f433dfae6dc96ed4abd7a0e18106a63666bce8eb878d9ffdc0610/ml_dtypes-0.7.0.tar.gz", hash = "sha256:67fd890fb09d1e068cfe1b4dc8e204430ae7632102b4a4f854b093b6f02b3950", size = 4353024, upload-time = "2026-11-16T16:21:26.657Z" }
 wheels = [
@@ -442,7 +484,7 @@ version = "2.4.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "ast-serialize" },
-    { name = "librt", marker = "platform_python_implementation != 'PyPy'" },
+    { name = "librt", marker = "platform_python_implementation != 'PyPy' or (extra == 'extra-13-aether-vision-litert' and extra == 'extra-13-aether-vision-qcs6490')" },
     { name = "mypy-extensions" },
     { name = "pathspec" },
     { name = "typing-extensions" },
@@ -545,8 +587,10 @@ name = "numpy"
 version = "2.5.5"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version >= '3.13'",
-    "python_full_version == '3.12.*'",
+    "python_full_version >= '3.12' and extra != 'extra-13-aether-vision-litert' and extra == 'extra-13-aether-vision-qcs6490'",
+    "python_full_version >= '3.13' and extra == 'extra-13-aether-vision-litert' and extra != 'extra-13-aether-vision-qcs6490'",
+    "python_full_version == '3.12.*' and extra == 'extra-13-aether-vision-litert' and extra != 'extra-13-aether-vision-qcs6490'",
+    "python_full_version >= '3.12' and extra != 'extra-13-aether-vision-litert' and extra != 'extra-13-aether-vision-qcs6490'",
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/4e/3a/8770c288c47f0b5c2a786d3c20e79f66fd245f2d42cd232d7cd5e00e83e5/numpy-2.5.5.tar.gz", hash = "sha256:5cddc243c75114ba845f01b1f87aca1572dbf7b6c2d88636ed3e1d2bccd7f1bf", size = 20873892, upload-time = "2026-11-15T21:32:28.607Z" }
 wheels = [
@@ -580,8 +624,8 @@ version = "1.32.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "flatbuffers" },
-    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "numpy", version = "2.5.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12' or (extra == 'extra-13-aether-vision-litert' and extra == 'extra-13-aether-vision-qcs6490')" },
+    { name = "numpy", version = "2.5.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12' or (extra == 'extra-13-aether-vision-litert' and extra == 'extra-13-aether-vision-qcs6490')" },
     { name = "packaging" },
     { name = "protobuf" },
 ]
@@ -610,8 +654,8 @@ name = "opencv-python-headless"
 version = "5.1.0.95"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "numpy", version = "2.5.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12' or (extra == 'extra-13-aether-vision-litert' and extra == 'extra-13-aether-vision-qcs6490')" },
+    { name = "numpy", version = "2.5.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12' or (extra == 'extra-13-aether-vision-litert' and extra == 'extra-13-aether-vision-qcs6490')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/6b/51/33b8c7255f3bdd920d6238aa478faf1e2136d5a51f17d826c13902ca7195/opencv_python_headless-5.1.0.95.tar.gz", hash = "sha256:9002add14b121b9a0d64dcaff48e5cac69a7987efcf2847f7db075c2d3b9633b", size = 83423991, upload-time = "2026-11-17T18:19:14.93Z" }
 wheels = [
@@ -825,7 +869,7 @@ name = "pytest"
 version = "9.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "colorama", marker = "sys_platform == 'win32' or (extra == 'extra-13-aether-vision-litert' and extra == 'extra-13-aether-vision-qcs6490')" },
     { name = "iniconfig" },
     { name = "packaging" },
     { name = "pluggy" },
@@ -916,7 +960,7 @@ name = "robotpy-native-wpiutil"
 version = "2026.2.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "msvc-runtime", marker = "sys_platform == 'win32'" },
+    { name = "msvc-runtime", marker = "sys_platform == 'win32' or (extra == 'extra-13-aether-vision-litert' and extra == 'extra-13-aether-vision-qcs6490')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/37/c3/8518d0d32d25e4c1332d11487537b8f33a12dbe7b7e02775806e2d837492/robotpy_native_wpiutil-2026.2.2-py3-none-macosx_13_0_universal2.whl", hash = "sha256:b55cb828d593ae7cc7ceee2fe6865461eaf103c17bbb3460fd698dd24fb9f8b8", size = 3921028, upload-time = "2026-03-13T02:28:54.739Z" },
@@ -1009,7 +1053,7 @@ resolution-markers = [
     "python_full_version < '3.12'",
 ]
 dependencies = [
-    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" } },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12' or (extra == 'extra-13-aether-vision-litert' and extra == 'extra-13-aether-vision-qcs6490')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/7a/97/5a3609c4f8d58b039179648e62dd220f89864f56f7357f5d4f45c29eb2cc/scipy-1.17.1.tar.gz", hash = "sha256:95d8e012d8cb8816c226aef832200b1d45109ed4464303e997c5b13122b297c0", size = 30573822, upload-time = "2026-02-23T00:26:24.851Z" }
 wheels = [
@@ -1060,11 +1104,13 @@ name = "scipy"
 version = "1.18.1"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version >= '3.13'",
-    "python_full_version == '3.12.*'",
+    "python_full_version >= '3.12' and extra != 'extra-13-aether-vision-litert' and extra == 'extra-13-aether-vision-qcs6490'",
+    "python_full_version >= '3.13' and extra == 'extra-13-aether-vision-litert' and extra != 'extra-13-aether-vision-qcs6490'",
+    "python_full_version == '3.12.*' and extra == 'extra-13-aether-vision-litert' and extra != 'extra-13-aether-vision-qcs6490'",
+    "python_full_version >= '3.12' and extra != 'extra-13-aether-vision-litert' and extra != 'extra-13-aether-vision-qcs6490'",
 ]
 dependencies = [
-    { name = "numpy", version = "2.5.5", source = { registry = "https://pypi.org/simple" } },
+    { name = "numpy", version = "2.5.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12' or (extra == 'extra-13-aether-vision-litert' and extra == 'extra-13-aether-vision-qcs6490')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/7e/74/66de6258867beb2ef08f35f9f2ac017a52cacd5081714d239ff1a442d458/scipy-1.18.1.tar.gz", hash = "sha256:52c4b7422442aba924d03ad4019852b08a92e64ea187b933135687bfe2747307", size = 30781235, upload-time = "2026-08-21T23:28:50.599Z" }
 wheels = [
@@ -1096,7 +1142,7 @@ version = "1.10.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
-    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.13' or (extra == 'extra-13-aether-vision-litert' and extra == 'extra-13-aether-vision-qcs6490')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/48/bb/3d8757f21e9a53d9035c9eb039a777047139a16bfdbedfc7a58241c3d914/starlette-1.10.0.tar.gz", hash = "sha256:b8399098d4c1e3522734f7235dc79b1fc967f96cf139c81e0fa30479e0685f9b", size = 2734356, upload-time = "2026-10-24T15:04:12.342Z" }
 wheels = [
@@ -1163,7 +1209,7 @@ standard = [
     { name = "httptools" },
     { name = "python-dotenv" },
     { name = "pyyaml" },
-    { name = "uvloop", marker = "platform_python_implementation != 'PyPy' and sys_platform != 'cygwin' and sys_platform != 'win32'" },
+    { name = "uvloop", marker = "(platform_python_implementation != 'PyPy' and sys_platform != 'cygwin' and sys_platform != 'win32') or (platform_python_implementation == 'PyPy' and extra == 'extra-13-aether-vision-litert' and extra == 'extra-13-aether-vision-qcs6490') or (sys_platform == 'cygwin' and extra == 'extra-13-aether-vision-litert' and extra == 'extra-13-aether-vision-qcs6490') or (sys_platform == 'win32' and extra == 'extra-13-aether-vision-litert' and extra == 'extra-13-aether-vision-qcs6490')" },
     { name = "watchfiles" },
     { name = "websockets" },
 ]

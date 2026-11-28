@@ -5,9 +5,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from aether_vision.inference.backend import Quantization
+from aether_vision.inference.backend import Quantization, TensorSpec
 from aether_vision.inference.yolo import YoloConfig, YoloDetector, letterbox, parse_class_names
-from tests.fakes import StaticBackend
+from tests.fakes import MultiOutputBackend, StaticBackend
 
 MODEL = Path(__file__).resolve().parents[1] / "models" / "yolov8n.onnx"
 
@@ -115,3 +115,52 @@ def test_bundled_onnx_model_runs_on_cpu() -> None:
     assert detector.class_names[0] == "person"
     assert detector.detect(np.zeros((480, 640, 3), dtype=np.uint8)) == []
     detector.close()
+
+
+def _split_model(
+    names: tuple[str, str, str], order: tuple[int, int, int] = (0, 1, 2)
+) -> tuple[list[np.ndarray], list[TensorSpec]]:
+    """A quantized AI Hub-style model: boxes [1,N,4], scores [1,N], classes [1,N]."""
+    box_q = Quantization(0.5, 10)
+    score_q = Quantization(1 / 255, 0)
+    boxes = np.asarray([[[4, 4, 24, 34], [5, 4, 25, 34], [40, 40, 50, 50]]], dtype=np.float32)
+    tensors = [
+        box_q.quantize(boxes, np.dtype(np.uint8)),
+        score_q.quantize(np.asarray([[0.9, 0.8, 0.6]], dtype=np.float32), np.dtype(np.uint8)),
+        np.asarray([[1, 1, 0]], dtype=np.uint8),
+    ]
+    specs = [
+        TensorSpec(names[0], (1, 3, 4), np.dtype(np.uint8), box_q),
+        TensorSpec(names[1], (1, 3), np.dtype(np.uint8), score_q),
+        TensorSpec(names[2], (1, 3), np.dtype(np.uint8), None),
+    ]
+    return [tensors[i] for i in order], [specs[i] for i in order]
+
+
+@pytest.mark.parametrize(
+    ("names", "order"),
+    [
+        (("boxes", "scores", "class_idx"), (0, 1, 2)),
+        (("boxes", "scores", "class_idx"), (2, 0, 1)),  # found by name
+        (("out0", "out1", "out2"), (0, 1, 2)),  # unnamed: boxes, scores, classes order
+    ],
+)
+def test_split_outputs_layout(names: tuple[str, str, str], order: tuple[int, int, int]) -> None:
+    outputs, specs = _split_model(names, order)
+    backend = MultiOutputBackend(outputs, specs, input_shape=(1, 64, 64, 3))
+    detector = YoloDetector(YoloConfig(class_names=("ball", "robot")), backend)
+    detector.load()
+    detections = detector.detect(np.zeros((64, 64, 3), dtype=np.uint8))
+    assert [d.class_name for d in detections] == ["robot", "ball"]  # duplicate removed by NMS
+    assert detections[0].box.x == pytest.approx(4)
+    assert detections[0].box.height == pytest.approx(30)
+    assert detections[0].confidence == pytest.approx(0.9, abs=0.01)
+
+
+def test_labels_file(tmp_path: Path) -> None:
+    labels = tmp_path / "labels.txt"
+    labels.write_text("ball\nrobot\n")
+    backend = StaticBackend(_channels_first([[10, 10, 8, 8, 0.1, 0.7]]))
+    detector = YoloDetector(YoloConfig(labels_path=str(labels)), backend)
+    detector.load()
+    assert detector.class_names == {0: "ball", 1: "robot"}

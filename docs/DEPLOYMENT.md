@@ -58,38 +58,45 @@ The QCS6490 has a Hexagon NPU that runs quantized models much faster than the
 CPU. Aether Vision uses it through LiteRT (TensorFlow Lite) with Qualcomm's QNN
 delegate.
 
-1. **Install the Qualcomm runtime.** `libQnnTFLiteDelegate.so` and the QNN HTP
-   libraries come with the Qualcomm AI Engine Direct SDK (QAIRT) or the
-   Qualcomm Linux image. Note where the delegate library is.
-2. **Install Aether Vision** with `scripts/install.sh`. LiteRT is included by
-   default, and on ARM64 the installer reports whether it found the QNN delegate.
-3. **Export a quantized TFLite model**, e.g. with Ultralytics:
+1. **Install Aether Vision** with `scripts/install.sh`. The installer detects a
+   QCS6490 (or QCM6490) from the device tree and then also:
+   - adds Qualcomm's package repository (on a RUBIK Pi 3 the Thundercomm PPA
+     that `rubikpi-script/install_ppa_pkgs.sh` uses, elsewhere
+     `ppa:ubuntu-qcom-iot/qcom-ppa`) and installs the AI packages
+     (`libqnn-dev`, `qnn-tools`, `tensorflow-lite-qcom-apps`, …), which provide
+     `libQnnTFLiteDelegate.so`;
+   - installs `ai-edge-litert==1.3.0`, the LiteRT release the delegate is
+     validated with (`uv sync --extra qcs6490` for a manual install).
+
+   Pass `--qcs6490` if detection misses your board, or `--no-qcs6490` to skip
+   all of this. The demo apps, desktop and GTK packages from Qualcomm's guide
+   are not needed and are not installed.
+2. **Get a quantized TFLite model.** The NPU only runs uint8/int8 models;
+   layers it can't run fall back to the CPU. Either export one with Ultralytics:
    ```bash
    yolo export model=your_model.pt format=tflite int8=True imgsz=640
    ```
-   or compile one with Qualcomm AI Hub. Copy it into `models/`.
-4. **Configure the detector** (see `examples/config.qcs6490.json`):
+   or download a pre-quantized `w8a8` model from Qualcomm AI Hub (YOLOv8
+   exports from AI Hub / the QIM SDK have separate `boxes`, `scores` and
+   `classes` outputs; the detector reads that format too). Copy it into `models/`.
+3. **Configure the detector** (see `examples/config.qcs6490.json`):
    ```json
    "detector": {
-     "model_path": "models/your_model_int8.tflite",
-     "backend": {
-       "kind": "litert",
-       "delegate": "qnn",
-       "qnn_backend": "htp",
-       "delegate_path": "/path/to/libQnnTFLiteDelegate.so"
-     }
+     "model_path": "models/your_model_w8a8.tflite",
+     "labels_path": "/etc/labels/coco_labels.txt",
+     "backend": { "kind": "litert", "delegate": "qnn", "qnn_backend": "htp" }
    }
    ```
-   If the libraries are on the system library path, `delegate_path` can stay
-   at its default. You may also need `LD_LIBRARY_PATH` / `ADSP_LIBRARY_PATH`
-   set as described in Qualcomm's SDK documentation. For the service, add
-   `Environment=` lines to `/etc/systemd/system/aether-vision.service`.
-5. **Check** the `pipeline/object_detection/stages/detect/backend` telemetry
+   `labels_path` is only needed for models without embedded class names (AI
+   Hub models). If the delegate is not on the library path, set
+   `backend.delegate_path` to its full path.
+4. **Check** the `pipeline/object_detection/stages/detect/backend` telemetry
    value on the dashboard. It should read `litert[qnn:htp]`, and
    `stages/detect/latency_ms` should drop well below the CPU number.
 
-If the delegate fails to load, the pipeline shows an error and retries every
-few seconds. Fix the path and click **Save** or **Restart pipeline**.
+If the delegate fails to load, the detector logs a warning and runs on the CPU
+(`backend` reads `litert[cpu]`). Set `backend.cpu_fallback` to `false` to make
+it an error instead; the pipeline then retries every few seconds.
 
 **Alternative:** an ONNX Runtime build with the QNN execution provider. Set
 `backend.providers` to `["QNNExecutionProvider", "CPUExecutionProvider"]`.

@@ -108,3 +108,22 @@ class StaticBackend(InferenceBackend):
     def run(self, inputs: list[np.ndarray]) -> list[np.ndarray]:
         self.received.append(inputs[0])
         return [self._output]
+
+
+class MultiOutputBackend(StaticBackend):
+    """Returns several fixed output tensors, described by ``specs``."""
+
+    def __init__(
+        self, outputs: list[np.ndarray], specs: list[TensorSpec], **kwargs: object
+    ) -> None:
+        super().__init__(outputs[0], **kwargs)  # type: ignore[arg-type]
+        self._outputs = outputs
+        self._specs = tuple(specs)
+
+    @property
+    def outputs(self) -> tuple[TensorSpec, ...]:
+        return self._specs
+
+    def run(self, inputs: list[np.ndarray]) -> list[np.ndarray]:
+        self.received.append(inputs[0])
+        return list(self._outputs)
